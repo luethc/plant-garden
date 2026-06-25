@@ -193,6 +193,10 @@ function plantState(id){
 }
 function save(){ localStorage.setItem(KEY, JSON.stringify(store)); }
 const DAY=86400000, now=()=>Date.now();
+const MKEY='garden_meta_v1';
+let meta = JSON.parse(localStorage.getItem(MKEY) || '{}');
+function saveMeta(){ localStorage.setItem(MKEY, JSON.stringify(meta)); }
+function checkinDue(){ return !meta.lastCheckin || (Date.now()-meta.lastCheckin) > 30*DAY; }
 function byId(id){ return SEED.find(p=>p.id===id); }
 function isCustom(id){ return String(id).startsWith('u'); }
 function patchPlant(id, fields){
@@ -349,6 +353,10 @@ function renderToday(){
   const setup = SEED.filter(p=>dueInfo(p).status==='unknown');
   const thriving = SEED.filter(p=>!thirsty.includes(p)&&!attn.includes(p)&&!setup.includes(p));
   let h='';
+  if(checkinDue()) h+=`<div class="card" style="border-color:#e6d8a8;background:#FAF3DF;cursor:pointer" onclick="startCheckin()">
+      <div class="meta"><div class="nm" style="font-size:15px;color:#B5882A">🔍 Time for a check-in</div>
+      <div class="sp" style="white-space:normal">It's been a month — a quick tap-through catches problems early</div></div>
+      <button class="btn out" onclick="event.stopPropagation();startCheckin()">start</button></div>`;
   // needs water
   h+=`<div class="sect"><span class="dot" style="background:var(--water)"></span><h2>needs water today</h2>${thirsty.length?`<span class="count">${thirsty.length}</span>`:''}</div>`;
   h+= thirsty.length? thirsty.map(p=>cardRow(p,true)).join('') : `<div class="empty">All watered up. Nothing thirsty today 🌿</div>`;
@@ -521,7 +529,7 @@ function openTools(){
   const s=document.getElementById('sheet');
   s.innerHTML=`<h3>garden tools</h3><p class="s">Reminders, check-in & backup.</p>
     <div class="opts">
-      <button class="opt" onclick="exportICS()">📅 Export watering reminders (.ics)<br><span style="color:var(--muted);font-size:12px">Import once into your phone calendar for real notifications</span></button>
+      <button class="opt" onclick="openExportPicker()">📅 Set up watering reminders<br><span style="color:var(--muted);font-size:12px">Pick plants → calendar file → import once for real notifications</span></button>
       <button class="opt" onclick="startCheckin()">🔍 Monthly check-in<br><span style="color:var(--muted);font-size:12px">Quick tap-through to catch soggy / light / pests</span></button>
       <button class="opt" onclick="exportData()">💾 Back up my garden<br><span style="color:var(--muted);font-size:12px">Save your plants, dates, notes &amp; photos to a file</span></button>
       <label class="opt" style="display:block;cursor:pointer">📂 Restore from a backup<br><span style="color:var(--muted);font-size:12px">Load a backup file (e.g. on a new phone)</span><input type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"></label>
@@ -529,10 +537,35 @@ function openTools(){
     </div>`;
   document.getElementById('modal').classList.add('show');
 }
-function exportICS(){
-  let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//My Garden//EN\r\nCALSCALE:GREGORIAN\r\n';
+function openExportPicker(){
+  const s=document.getElementById('sheet');
+  s.innerHTML=`<h3>watering reminders</h3><p class="s">Pick which plants get calendar reminders.</p>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="pill" onclick="pickAll(true)">select all</button>
+      <button class="pill" onclick="pickAll(false)">none</button>
+    </div>
+    <div style="max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)">
+      ${SEED.map(p=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:14px;border-bottom:1px solid var(--line2)">
+        <input type="checkbox" class="exp" value="${p.id}" checked style="width:18px;height:18px">
+        <span style="flex:1">${p.name} <span style="color:var(--muted);font-size:12px">· every ${p.water}d</span></span></label>`).join('')}
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;padding:14px 4px;font-size:14px">
+      <input type="checkbox" id="exp_checkin" checked style="width:18px;height:18px"> also add a monthly check-in reminder</label>
+    <button class="btn water full" onclick="doExport()">download calendar file</button>
+    <button class="btn ghost full" style="margin-top:8px;border:none" onclick="closeModal()">cancel</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+function pickAll(v){ document.querySelectorAll('.exp').forEach(c=>c.checked=v); }
+function doExport(){
+  const ids=[...document.querySelectorAll('.exp:checked')].map(c=>c.value);
+  if(!ids.length){ alert('Pick at least one plant first.'); return; }
+  exportICS(ids, document.getElementById('exp_checkin').checked);
+}
+function exportICS(ids, includeCheckin){
+  ids = ids || SEED.map(p=>p.id);
   const dt=(d)=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  SEED.forEach(p=>{
+  let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//My Garden//EN\r\nCALSCALE:GREGORIAN\r\n';
+  SEED.filter(p=>ids.includes(p.id)).forEach(p=>{
     const st=plantState(p.id); const start=new Date((st.last||now())+p.water*DAY); start.setHours(9,0,0,0);
     ics+='BEGIN:VEVENT\r\n';
     ics+=`UID:${p.id}@mygarden\r\n`;
@@ -543,6 +576,17 @@ function exportICS(){
     ics+='BEGIN:VALARM\r\nTRIGGER:PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:Water reminder\r\nEND:VALARM\r\n';
     ics+='END:VEVENT\r\n';
   });
+  if(includeCheckin){
+    const start=new Date(); start.setDate(start.getDate()+1); start.setHours(9,0,0,0);
+    ics+='BEGIN:VEVENT\r\n';
+    ics+='UID:checkin@mygarden\r\n';
+    ics+=`DTSTART:${dt(start)}\r\n`;
+    ics+='RRULE:FREQ=MONTHLY\r\n';
+    ics+='SUMMARY:🔍 Plant check-in (My Garden)\r\n';
+    ics+='DESCRIPTION:Open My Garden and tap tools → Monthly check-in.\r\n';
+    ics+='BEGIN:VALARM\r\nTRIGGER:PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:Plant check-in\r\nEND:VALARM\r\n';
+    ics+='END:VEVENT\r\n';
+  }
   ics+='END:VCALENDAR';
   const blob=new Blob([ics],{type:'text/calendar'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='my-garden-reminders.ics'; a.click();
@@ -570,7 +614,7 @@ function importData(inp){
 let ciQueue=[], ciIdx=0;
 function startCheckin(){ ciQueue=SEED.slice(); ciIdx=0; nextCheckin(); }
 function nextCheckin(){
-  if(ciIdx>=ciQueue.length){ closeModal(); render(); toast('✅ check-in done'); return; }
+  if(ciIdx>=ciQueue.length){ meta.lastCheckin=Date.now(); saveMeta(); closeModal(); render(); toast('✅ check-in done'); return; }
   const p=ciQueue[ciIdx]; const s=document.getElementById('sheet');
   s.innerHTML=`<h3>${p.name}</h3><p class="s">${p.sp} &nbsp;·&nbsp; ${ciIdx+1}/${ciQueue.length}</p>
     <div style="text-align:center"><div class="creature" style="width:110px;height:110px;margin:0 auto 8px">${creature(p,plantState(p.id).mood||dueInfo(p).status)}</div></div>
