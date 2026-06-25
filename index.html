@@ -169,7 +169,7 @@ const BASE = [
   {id:'drake', name:'Drake', sp:'Dracaena marginata', shape:'spiky', col:'#4a7a40', acc:'#9a4a3a', size:'L', rarity:1, light:'Bright indirect', group:'bright', water:10, toxic:true, tip:'Spiky dragon tree. Sensitive to fluoride — use filtered water.'},
   {id:'vista', name:'Vista', sp:'Variegated Hosta', shape:'broad', col:'#6f9a64', acc:'#e6e7c8', size:'M', rarity:1, light:'Part shade', group:'balcony', water:4, toxic:true, tip:'Balcony perennial. Dies back in winter and returns in spring.'},
   {id:'bea', name:'Bea', sp:'Begonia (bronze-leaf)', shape:'flower', col:'#7a6a55', acc:'#e58fb0', size:'S', rarity:1, light:'Bright / part sun', group:'balcony', water:4, toxic:true, tip:'Cheery bloomer. An annual in Munich frost — enjoy her for the season.'},
-  {id:'misty', name:'Misty', sp:'Diamond Frost (Euphorbia)', shape:'flower', col:'#6fa256', acc:'#ffffff', size:'S', rarity:2, light:'Sun / part sun', group:'balcony', water:4, toxic:true, tip:'Airy white blooms. Heat-lover; shares Bea’s window box.'},
+  {id:'misty', name:'Mist & Misty', sp:'Diamond Frost (Euphorbia) ×2', shape:'flower', col:'#6fa256', acc:'#ffffff', size:'S', rarity:2, light:'Sun / part sun', group:'balcony', water:4, toxic:true, tip:'The two of them — airy white blooms. Heat-lovers; share Bea’s window box.'},
   {id:'shortcake', name:'Shortcake', sp:'Strawberry plant', shape:'flower', col:'#5c9150', acc:'#d8473f', size:'S', rarity:1, light:'Full sun', group:'sun', water:3, toxic:false, tip:'Keep evenly moist. Sends out runners and fruits in season.'}
 ];
 
@@ -443,10 +443,11 @@ function openDetail(id){
     </div>
     <div style="height:30px"></div>
    </div>`;
+  el.style.transition=''; el.style.transform=''; el.style.opacity='';
   el.classList.add('show'); document.body.style.overflow='hidden'; el.scrollTop=0;
 }
 function dueWord(d){ if(d.days<=0) return d.days===0?'today':`${-d.days}d overdue`; return `in ${d.days} days`; }
-function closeDetail(){ const el=document.getElementById('detail'); el.classList.remove('show'); document.body.style.overflow=''; render(); }
+function closeDetail(){ const el=document.getElementById('detail'); el.classList.remove('show'); el.style.transform=''; el.style.opacity=''; el.style.transition=''; document.body.style.overflow=''; render(); }
 function histDots(st){ const h=(st.history||[]).slice(-10); return h.map(()=>'<i class="on"></i>').join(''); }
 
 function waterNow(id){
@@ -574,6 +575,45 @@ function greet(){
 }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
 document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
+
+/* ---------- swipe sideways to go back (detail page) ---------- */
+(function(){
+  const ov=document.getElementById('detail');
+  let sx=0, sy=0, drag=false, horiz=false, dxv=0;
+  ov.addEventListener('touchstart', e=>{
+    if(!ov.classList.contains('show') || e.touches.length!==1) return;
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY; drag=true; horiz=false; dxv=0;
+    ov.style.transition='none';
+  }, {passive:true});
+  ov.addEventListener('touchmove', e=>{
+    if(!drag) return;
+    const dx=e.touches[0].clientX-sx, dy=e.touches[0].clientY-sy;
+    if(!horiz){
+      if(Math.abs(dx)>14 && Math.abs(dx)>Math.abs(dy)*1.3) horiz=true;
+      else if(Math.abs(dy)>14){ drag=false; return; }
+    }
+    if(horiz){
+      dxv=dx; e.preventDefault();
+      ov.style.transform='translateX('+dx+'px)';
+      ov.style.opacity=String(Math.max(.4, 1-Math.abs(dx)/520));
+    }
+  }, {passive:false});
+  function release(){
+    if(!drag) return; drag=false;
+    if(horiz && Math.abs(dxv)>90){
+      const dir = dxv>0?1:-1;
+      ov.style.transition='transform .18s ease, opacity .18s ease';
+      ov.style.transform='translateX('+(dir*window.innerWidth)+'px)';
+      ov.style.opacity='0';
+      setTimeout(closeDetail, 170);
+    } else {
+      ov.style.transition='transform .2s ease, opacity .2s ease';
+      ov.style.transform=''; ov.style.opacity='';
+    }
+  }
+  ov.addEventListener('touchend', release);
+  ov.addEventListener('touchcancel', release);
+})();
 
 greet(); render();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
