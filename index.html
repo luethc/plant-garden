@@ -519,10 +519,12 @@ function confirmDel(id){ if(confirm('Remove this plant? Its notes, history and p
 /* ---------- check-in + reminders (in settings sheet, opened from Today header tap) ---------- */
 function openTools(){
   const s=document.getElementById('sheet');
-  s.innerHTML=`<h3>garden tools</h3><p class="s">Reminders & monthly check-in.</p>
+  s.innerHTML=`<h3>garden tools</h3><p class="s">Reminders, check-in & backup.</p>
     <div class="opts">
       <button class="opt" onclick="exportICS()">📅 Export watering reminders (.ics)<br><span style="color:var(--muted);font-size:12px">Import once into your phone calendar for real notifications</span></button>
       <button class="opt" onclick="startCheckin()">🔍 Monthly check-in<br><span style="color:var(--muted);font-size:12px">Quick tap-through to catch soggy / light / pests</span></button>
+      <button class="opt" onclick="exportData()">💾 Back up my garden<br><span style="color:var(--muted);font-size:12px">Save your plants, dates, notes &amp; photos to a file</span></button>
+      <label class="opt" style="display:block;cursor:pointer">📂 Restore from a backup<br><span style="color:var(--muted);font-size:12px">Load a backup file (e.g. on a new phone)</span><input type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"></label>
       <button class="opt" onclick="closeModal()">close</button>
     </div>`;
   document.getElementById('modal').classList.add('show');
@@ -545,6 +547,25 @@ function exportICS(){
   const blob=new Blob([ics],{type:'text/calendar'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='my-garden-reminders.ics'; a.click();
   URL.revokeObjectURL(url); closeModal(); toast('📅 calendar file downloaded');
+}
+function exportData(){
+  const data={ app:'my-garden', v:2, exported:new Date().toISOString(), custom, store };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='my-garden-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  URL.revokeObjectURL(a.href); closeModal(); toast('💾 backup saved');
+}
+function importData(inp){
+  const f=inp.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{
+      const d=JSON.parse(r.result);
+      if(!d || d.app!=='my-garden') throw 0;
+      if(d.custom){ custom=d.custom; localStorage.setItem(CKEY, JSON.stringify(custom)); buildSeed(); }
+      if(d.store){ store=Object.assign(store, d.store); save(); }
+      closeModal(); render(); toast('✅ garden restored');
+    }catch(e){ alert('Sorry — that doesn’t look like a My Garden backup file.'); }
+  };
+  r.readAsText(f);
 }
 let ciQueue=[], ciIdx=0;
 function startCheckin(){ ciQueue=SEED.slice(); ciIdx=0; nextCheckin(); }
