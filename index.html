@@ -115,6 +115,16 @@
   .hist{display:flex;gap:5px;align-items:center;margin-top:4px}
   .hist i{width:9px;height:9px;border-radius:50%;background:var(--line)}
   .hist i.on{background:var(--sage)}
+  .chev{display:inline-block;color:var(--hint);font-size:14px;width:12px;transition:transform .15s ease}
+  .sect.clk{cursor:pointer;user-select:none}
+  .sect.open .chev{transform:rotate(90deg)}
+  .boxgrp{border:1px dashed var(--line);border-radius:14px;padding:8px 8px 4px;margin:10px 0;background:rgba(255,253,248,.55)}
+  .boxhd{font-size:12px;color:var(--muted);font-weight:600;margin:2px 4px 8px;display:flex;align-items:center;gap:6px}
+  .loc input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px;font-family:var(--sans);font-size:13px;background:var(--card);color:var(--ink2)}
+  .filterbar{display:flex;gap:7px;overflow-x:auto;padding:6px 0 10px;-webkit-overflow-scrolling:touch}
+  .fchip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:20px;padding:6px 11px;font-size:12px;font-family:var(--sans);cursor:pointer;white-space:nowrap}
+  .fchip.on{background:#e8efe2;border-color:#bcd0ad;color:var(--ink);font-weight:500}
+  .fchip.clr{border-style:dashed}
 </style>
 </head>
 <body>
@@ -133,8 +143,11 @@
   <button data-tab="garden" onclick="go('garden')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>garden
   </button>
+  <button data-tab="rooms" onclick="go('rooms')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg>rooms
+  </button>
   <button data-tab="add" onclick="openAdd()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add plant
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add
   </button>
 </nav>
 
@@ -173,6 +186,21 @@ const BASE = [
   {id:'shortcake', name:'Shortcake', sp:'Strawberry plant', shape:'flower', col:'#5c9150', acc:'#d8473f', size:'S', rarity:1, light:'Full sun', group:'sun', water:3, toxic:false, tip:'Keep evenly moist. Sends out runners and fruits in season.'}
 ];
 
+/* ---------- derived attributes (for filters) + absolute-scale rarity + seeded rooms ---------- */
+const LIGHTCAT={ sun:['vera','pip','shortcake','misty','bea'], low:['phil','goldie','drake'], shade:['vista'] };
+const RAINWATER=['pip','grace','drake'];            // want rain / distilled / filtered water
+const SEASONAL=['coraline','pip','vista','bea','misty','shortcake','splash']; // need different care in another season
+// rarity on an absolute houseplant scale (5 = ultra-rare collector plant Chelsea doesn't own); others default to 1
+const RARITY={ stella:4, albus:4, pip:3, splash:3, luna:3, monty:2, delila:2, mojo:2, pia:2, coraline:2, grace:2, tilly:2 };
+const ROOMS={ vista:['Balcony',''], bea:['Balcony','Window box'], misty:['Balcony','Window box'], shortcake:['Balcony',''], pip:['Balcony',''] };
+BASE.forEach(p=>{
+  p.lightcat = ['sun','low','shade'].find(c=>LIGHTCAT[c].includes(p.id)) || 'bright';
+  p.rainwater = RAINWATER.includes(p.id);
+  p.seasonal = SEASONAL.includes(p.id);
+  p.rarity = RARITY[p.id]!=null ? RARITY[p.id] : 1;
+  if(ROOMS[p.id]){ p.room=ROOMS[p.id][0]; if(ROOMS[p.id][1]) p.box=ROOMS[p.id][1]; }
+});
+
 /* ---------- the cast: built-in base + your custom layer (persists on this device) ---------- */
 const CKEY='garden_custom_v1';
 let custom = JSON.parse(localStorage.getItem(CKEY) || '{"added":[],"edits":{},"deleted":[]}');
@@ -197,6 +225,8 @@ const MKEY='garden_meta_v1';
 let meta = JSON.parse(localStorage.getItem(MKEY) || '{}');
 function saveMeta(){ localStorage.setItem(MKEY, JSON.stringify(meta)); }
 function checkinDue(){ return !meta.lastCheckin || (Date.now()-meta.lastCheckin) > 30*DAY; }
+function hasData(){ return custom.added.length>0 || Object.values(store).some(s=>s && (s.last || (s.journal&&s.journal.length) || s.notes)); }
+function backupDue(){ if(!hasData()) return false; if(meta.lastBackup) return (Date.now()-meta.lastBackup) > 30*DAY; return (Date.now()-(meta.firstUse||Date.now())) > 14*DAY; }
 function byId(id){ return SEED.find(p=>p.id===id); }
 function isCustom(id){ return String(id).startsWith('u'); }
 function patchPlant(id, fields){
@@ -231,18 +261,19 @@ const MOODWORD={happy:'happy',thirsty:'thirsty',water:'just watered',soggy:'sogg
 
 /* ---------- creature art (placeholder, generated) ---------- */
 function face(m){
-  // eyes + mouth on the pot, mood-driven. center ~ (60,96)
+  // eyes + mood-driven mouth on the pot. center ~ (60,96)
   const eye=(x)=>`<ellipse cx="${x}" cy="95" rx="2.3" ry="2.7" fill="#4A3B2E"/><circle cx="${x+.6}" cy="94.2" r="0.7" fill="#FBF5EA"/>`;
-  let m1, extra='';
-  if(m==='thirsty'){ m1='M55,100 Q60,97 65,100'; extra=`<path d="M70,88 c-2,3 -2,5 0,5 c2,0 2,-2 0,-5" fill="#7FB0C4"/>`; }
-  else if(m==='water'){ m1='M54,99 Q60,106 66,99 Z'; extra=`<path d="M44,84 l1,3 l3,1 l-3,1 l-1,3 l-1,-3 l-3,-1 l3,-1 Z" fill="#F2C84B"/>`; }
-  else if(m==='soggy'){ m1='M55,101 Q60,98 65,101'; extra=`<path d="M44,90 c-2,3 -2,5 0,5 c2,0 2,-2 0,-5" fill="#6E8FB0"/>`; }
-  else if(m==='light'){ m1='M55,100 Q60,103 65,100'; extra=`<g stroke="#C79A3A" stroke-width="1.5"><circle cx="46" cy="86" r="3" fill="#F2C84B" stroke="none"/><line x1="46" y1="80" x2="46" y2="82"/><line x1="40" y1="86" x2="42" y2="86"/></g>`; }
-  else if(m==='unwell'){ return `<path d="M52,93 l4,4 M56,93 l-4,4" stroke="#4A3B2E" stroke-width="1.6"/><path d="M64,93 l4,4 M68,93 l-4,4" stroke="#4A3B2E" stroke-width="1.6"/><path d="M55,101 Q60,98 65,101" stroke="#4A3B2E" stroke-width="1.8" fill="none" stroke-linecap="round"/>`; }
-  else if(m==='unknown'){ m1='M56,100 L64,100'; }
-  else { m1='M54,99 Q60,104 66,99'; } // happy
-  const cheeks = (m==='happy'||m==='water')?`<ellipse cx="50" cy="99" rx="3.4" ry="2" fill="#E59C7A" opacity=".5"/><ellipse cx="70" cy="99" rx="3.4" ry="2" fill="#E59C7A" opacity=".5"/>`:'';
-  return cheeks+eye(55)+eye(65)+`<path d="${m1}" stroke="#4A3B2E" stroke-width="1.8" fill="none" stroke-linecap="round"/>`+extra;
+  const line=(d)=>`<path d="${d}" stroke="#4A3B2E" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+  let mouth, extra='', cheeks=false;
+  if(m==='thirsty'){ mouth=line('M55,100 Q60,97 65,100'); extra=`<path d="M70,88 c-2,3 -2,5 0,5 c2,0 2,-2 0,-5" fill="#7FB0C4"/>`; }
+  else if(m==='water'){ /* big open grin 😃 */ mouth=`<path d="M53,98 Q60,110 67,98 Z" fill="#4A3B2E"/><path d="M56.5,103 Q60,106 63.5,103" stroke="#E58B86" stroke-width="2" fill="none" stroke-linecap="round"/>`; cheeks=true; extra=`<path d="M44,84 l1,3 l3,1 l-3,1 l-1,3 l-1,-3 l-3,-1 l3,-1 Z" fill="#F2C84B"/><path d="M75,82 l.8,2.4 l2.4,.8 l-2.4,.8 l-.8,2.4 l-.8,-2.4 l-2.4,-.8 l2.4,-.8 Z" fill="#F2C84B"/>`; }
+  else if(m==='soggy'){ mouth=line('M55,101 Q60,98 65,101'); extra=`<path d="M44,90 c-2,3 -2,5 0,5 c2,0 2,-2 0,-5" fill="#6E8FB0"/>`; }
+  else if(m==='light'){ /* complacent straight mouth */ mouth=line('M55,100 L65,100'); extra=`<g stroke="#C79A3A" stroke-width="1.5"><circle cx="46" cy="86" r="3" fill="#F2C84B" stroke="none"/><line x1="46" y1="80" x2="46" y2="82"/><line x1="40" y1="86" x2="42" y2="86"/></g>`; }
+  else if(m==='unwell'){ return `<path d="M52,93 l4,4 M56,93 l-4,4" stroke="#4A3B2E" stroke-width="1.6"/><path d="M64,93 l4,4 M68,93 l-4,4" stroke="#4A3B2E" stroke-width="1.6"/>`+line('M55,101 Q60,98 65,101'); }
+  else if(m==='unknown'){ mouth=line('M56,100 L64,100'); }
+  else { /* happy / fine = small gentle smile */ mouth=line('M56,100 Q60,103 64,100'); cheeks=true; }
+  const ch = cheeks?`<ellipse cx="50" cy="99" rx="3.4" ry="2" fill="#E59C7A" opacity=".5"/><ellipse cx="70" cy="99" rx="3.4" ry="2" fill="#E59C7A" opacity=".5"/>`:'';
+  return ch+eye(55)+eye(65)+mouth+extra;
 }
 function pot(){ return `<path d="M40,84 C41,96 46,110 48,112 L72,112 C74,110 79,96 80,84 Z" fill="#C8795A"/><path d="M40,84 C41,94 44,106 47,111 L52,112 C48,103 45,93 44,84 Z" fill="#B5664A" opacity=".4"/><ellipse cx="60" cy="84" rx="22" ry="4.5" fill="#D78A68"/><ellipse cx="60" cy="84" rx="17" ry="3" fill="#5A4636"/>`; }
 function leaf(path, cx, rot, scale, fill, accFill, accPath){
@@ -344,8 +375,15 @@ function statusDot(s){ const c={thirsty:'var(--terra)',happy:'var(--good)',water
 function render(){
   const v=document.getElementById('view');
   if(tab==='today') v.innerHTML=renderToday();
+  else if(tab==='rooms') v.innerHTML=renderRooms();
   else v.innerHTML=renderGarden();
 }
+function sectionBlock(id, titleHTML, bodyHTML, cls){
+  const open = !(meta.collapsed && meta.collapsed[id]);
+  return `<div class="sect clk ${cls||''} ${open?'open':''}" onclick="toggleSect('${id}')"><span class="chev">›</span>${titleHTML}</div>`+
+         `<div class="sbody" ${open?'':'style="display:none"'}>${bodyHTML}</div>`;
+}
+function toggleSect(id){ meta.collapsed=meta.collapsed||{}; meta.collapsed[id]=!meta.collapsed[id]; saveMeta(); render(); }
 
 function renderToday(){
   const thirsty = SEED.filter(p=>dueInfo(p).status==='thirsty');
@@ -357,16 +395,15 @@ function renderToday(){
       <div class="meta"><div class="nm" style="font-size:15px;color:#B5882A">🔍 Time for a check-in</div>
       <div class="sp" style="white-space:normal">It's been a month — a quick tap-through catches problems early</div></div>
       <button class="btn out" onclick="event.stopPropagation();startCheckin()">start</button></div>`;
-  // needs water
-  h+=`<div class="sect"><span class="dot" style="background:var(--water)"></span><h2>needs water today</h2>${thirsty.length?`<span class="count">${thirsty.length}</span>`:''}</div>`;
-  h+= thirsty.length? thirsty.map(p=>cardRow(p,true)).join('') : `<div class="empty">All watered up. Nothing thirsty today 🌿</div>`;
-  // needs attention
-  if(attn.length){ h+=`<div class="sect attn"><span class="dot" style="background:var(--amber)"></span><h2>needs attention</h2><span class="count">${attn.length}</span></div>`; h+=attn.map(p=>cardRow(p,false)).join(''); }
-  // set up
-  if(setup.length){ h+=`<div class="sect"><span class="dot" style="background:var(--hint)"></span><h2>set last-watered</h2><span class="count">${setup.length}</span></div>`; h+=setup.slice(0,40).map(p=>cardRow(p,false)).join(''); }
-  // thriving
-  h+=`<div class="sect thrive"><span class="dot" style="background:var(--good)"></span><h2>thriving</h2></div>`;
-  h+= thriving.length? thriving.map(p=>cardRow(p,false)).join('') : `<div class="empty">—</div>`;
+  if(backupDue()) h+=`<div class="card" style="border-color:#c3d2e6;background:#EEF3F8;cursor:pointer" onclick="exportData()">
+      <div class="meta"><div class="nm" style="font-size:15px;color:#4f7295">💾 Back up your garden</div>
+      <div class="sp" style="white-space:normal">It's been a while — save a copy so you never lose your plants</div></div>
+      <button class="btn ghost" onclick="event.stopPropagation();exportData()">back up</button></div>`;
+  h+= sectionBlock('water', `<span class="dot" style="background:var(--water)"></span><h2>needs water today</h2>${thirsty.length?`<span class="count">${thirsty.length}</span>`:''}`,
+        thirsty.length? thirsty.map(p=>cardRow(p,true)).join('') : `<div class="empty">All watered up. Nothing thirsty today 🌿</div>`);
+  if(attn.length) h+= sectionBlock('attn', `<span class="dot" style="background:var(--amber)"></span><h2>needs attention</h2><span class="count">${attn.length}</span>`, attn.map(p=>cardRow(p,false)).join(''), 'attn');
+  if(setup.length) h+= sectionBlock('setup', `<span class="dot" style="background:var(--hint)"></span><h2>set last-watered</h2><span class="count">${setup.length}</span>`, setup.map(p=>cardRow(p,false)).join(''));
+  h+= sectionBlock('thrive', `<span class="dot" style="background:var(--good)"></span><h2>thriving</h2>${thriving.length?`<span class="count">${thriving.length}</span>`:''}`, thriving.length? thriving.map(p=>cardRow(p,false)).join('') : `<div class="empty">—</div>`, 'thrive');
   return h;
 }
 function cardRow(p, showWater){
@@ -382,18 +419,70 @@ function cardRow(p, showWater){
   </div>`;
 }
 
-function renderGarden(){
-  let h=`<div class="sect"><h2>all plants</h2><span class="count">${SEED.length}</span></div><div class="grid">`;
-  h+= SEED.map(p=>{ const m=plantState(p.id).mood||dueInfo(p).status;
-    return `<div class="tile" onclick="openDetail('${p.id}')">
+function miniTile(p){ const m=plantState(p.id).mood||dueInfo(p).status;
+  return `<div class="tile" onclick="openDetail('${p.id}')">
       <span class="badge">rarity ${p.rarity}</span>
       <div class="creature">${creature(p,m)}</div>
       <div class="nm">${p.name}</div>
       <div class="st s-${m}">${statusDot(m)}${MOODWORD[m]||'happy'}</div>
       ${rarity(p.rarity)}
-    </div>`; }).join('');
-  return h+'</div>';
+    </div>`;
 }
+let gf={light:'', rainwater:false, seasonal:false, tox:'', rare:false};
+function setGF(key,val){ if(key==='light') gf.light = gf.light===val?'':val; else if(key==='tox') gf.tox = gf.tox===val?'':val; else gf[key]=!gf[key]; render(); }
+function clearGF(){ gf={light:'',rainwater:false,seasonal:false,tox:'',rare:false}; render(); }
+function gfActive(){ return gf.light||gf.rainwater||gf.seasonal||gf.tox||gf.rare; }
+function passGF(p){
+  if(gf.light && p.lightcat!==gf.light) return false;
+  if(gf.rainwater && !p.rainwater) return false;
+  if(gf.seasonal && !p.seasonal) return false;
+  if(gf.tox==='toxic' && !p.toxic) return false;
+  if(gf.tox==='safe' && p.toxic) return false;
+  if(gf.rare && p.rarity<4) return false;
+  return true;
+}
+function fchip(label,on,call){ return `<button class="fchip ${on?'on':''}" onclick="${call}">${label}</button>`; }
+function renderGarden(){
+  const list=SEED.filter(passGF);
+  let h=`<div class="filterbar">
+    ${fchip('☀ sun', gf.light==='sun', "setGF('light','sun')")}
+    ${fchip('◐ bright', gf.light==='bright', "setGF('light','bright')")}
+    ${fchip('☾ low', gf.light==='low', "setGF('light','low')")}
+    ${fchip('🌿 shade', gf.light==='shade', "setGF('light','shade')")}
+    ${fchip('💧 rain/distilled', gf.rainwater, "setGF('rainwater')")}
+    ${fchip('❄ seasonal', gf.seasonal, "setGF('seasonal')")}
+    ${fchip('⚠ toxic', gf.tox==='toxic', "setGF('tox','toxic')")}
+    ${fchip('🐾 pet-safe', gf.tox==='safe', "setGF('tox','safe')")}
+    ${fchip('✦ rare', gf.rare, "setGF('rare')")}
+    ${gfActive()?`<button class="fchip clr" onclick="clearGF()">clear ✕</button>`:''}
+  </div>
+  <div class="sect"><h2>${gfActive()?'filtered':'all plants'}</h2><span class="count">${list.length}</span></div>
+  <div class="grid">${list.length? list.map(miniTile).join('') : '<div class="empty" style="grid-column:1/-1">no plants match these filters</div>'}</div>`;
+  return h;
+}
+function renderRooms(){
+  const rooms={};
+  SEED.forEach(p=>{ const r=(p.room&&p.room.trim())||'Unassigned'; (rooms[r]=rooms[r]||[]).push(p); });
+  const names=Object.keys(rooms).sort((a,b)=> a==='Unassigned'?1 : b==='Unassigned'?-1 : a.localeCompare(b));
+  let h=`<div class="sect"><h2>rooms</h2><span class="count">${names.length}</span></div>
+    <div class="empty" style="text-align:left;padding:2px 2px 8px;color:var(--muted)">Set a plant's room on its page. Plants sharing a “group / box” cluster together. 📦</div>`;
+  names.forEach(rn=>{
+    const plants=rooms[rn], boxes={}, loose=[];
+    plants.forEach(p=>{ const b=(p.box&&p.box.trim()); if(b){(boxes[b]=boxes[b]||[]).push(p);} else loose.push(p); });
+    const id='room_'+rn.replace(/\W/g,'');
+    const open=!(meta.collapsed&&meta.collapsed[id]);
+    let body='';
+    if(loose.length) body+=`<div class="grid">${loose.map(miniTile).join('')}</div>`;
+    Object.keys(boxes).sort().forEach(bn=>{
+      body+=`<div class="boxgrp"><div class="boxhd">📦 ${esc(bn)} <span style="color:var(--hint);font-weight:400">· ${boxes[bn].length}</span></div><div class="grid">${boxes[bn].map(miniTile).join('')}</div></div>`;
+    });
+    h+=`<div class="sect clk ${open?'open':''}" onclick="toggleSect('${id}')" style="margin-top:14px"><span class="chev">›</span><h2>${rn==='Unassigned'?'unassigned':esc(rn)}</h2><span class="count">${plants.length}</span></div><div class="sbody" ${open?'':'style="display:none"'}>${body}</div>`;
+  });
+  return h;
+}
+function setLoc(id,key,val){ patchPlant(id,{[key]:val.trim()}); openDetail(id); }
+function roomOpts(){ return [...new Set(SEED.map(p=>p.room).filter(Boolean))].map(r=>`<option value="${esc(r)}">`).join(''); }
+function boxOpts(){ return [...new Set(SEED.map(p=>p.box).filter(Boolean))].map(r=>`<option value="${esc(r)}">`).join(''); }
 
 /* ---------- detail ---------- */
 let curId=null;
@@ -429,6 +518,14 @@ function openDetail(id){
       <div class="row"><span class="k">Next due</span><span class="v">${st.last?dueWord(d):'—'}</span></div>
     </div>
     <div style="font-size:13px;color:var(--ink2);line-height:1.6;background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:12px">💡 ${p.tip}</div>
+
+    <span class="lbl">Location</span>
+    <div class="loc" style="display:flex;gap:8px">
+      <input list="roomlist" placeholder="Room (e.g. Living room)" value="${esc(p.room||'')}" onchange="setLoc('${p.id}','room',this.value)">
+      <input list="boxlist" placeholder="Group / box (optional)" value="${esc(p.box||'')}" onchange="setLoc('${p.id}','box',this.value)">
+    </div>
+    <datalist id="roomlist">${roomOpts()}</datalist>
+    <datalist id="boxlist">${boxOpts()}</datalist>
 
     <span class="lbl">How is ${p.name} doing?</span>
     <div class="pills">
@@ -597,7 +694,7 @@ function exportData(){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='my-garden-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
-  URL.revokeObjectURL(a.href); closeModal(); toast('💾 backup saved');
+  URL.revokeObjectURL(a.href); meta.lastBackup=Date.now(); saveMeta(); closeModal(); toast('💾 backup saved');
 }
 function importData(inp){
   const f=inp.files[0]; if(!f) return; const r=new FileReader();
@@ -680,8 +777,15 @@ document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id===
   ov.addEventListener('touchcancel', release);
 })();
 
+if(!meta.firstUse){ meta.firstUse=Date.now(); saveMeta(); }
 greet(); render();
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+/* auto-update: pull the newest version whenever a fresh one is published */
+if('serviceWorker' in navigator){
+  const hadController = !!navigator.serviceWorker.controller;
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(refreshing||!hadController) return; refreshing=true; location.reload(); });
+  navigator.serviceWorker.register('sw.js').then(reg=>{ reg.update(); setInterval(()=>reg.update(), 60*60*1000); }).catch(()=>{});
+}
 </script>
 </body>
 </html>
