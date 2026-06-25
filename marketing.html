@@ -67,6 +67,11 @@
             font-weight: 500;
         }
 
+        .badge-wrapper {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
         /* Screenshot Gallery */
         .gallery-title {
             font-size: 1.1rem;
@@ -91,6 +96,9 @@
             overflow: hidden;
             border: 1px solid rgba(0,0,0,0.05);
             box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .screenshot-item img {
@@ -111,7 +119,7 @@
 
         /* Forms & Inputs */
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         label {
@@ -222,7 +230,6 @@
 </head>
 <body>
 
-    <!-- PUBLIC VIEW: MARKETING & SIGNUP TAB -->
     <div id="public-marketing-view" class="container">
         <header>
             <h1>my garden</h1>
@@ -230,7 +237,6 @@
             <span class="features-badge">✨ Zero Ads • No App Store Friction • Light Experience</span>
         </header>
 
-        <!-- Product Screenshots Section -->
         <p class="gallery-title">Take a look inside your future garden</p>
         <div class="screenshot-grid">
             <div class="screenshot-item">
@@ -259,14 +265,11 @@
             </div>
         </div>
 
-        <!-- Signup Tab -->
-        <div id="signup-tab/form-section" class="container">   
-            </header>
-                <h3 style="margin-bottom: 16px; text-align: center;">Request Early-Bird Access </h3>
-                <span class="features-badge">✨ lifetime for 5€ • limited time offer ✨</span>
-            </header>
+        <h3 style="margin-bottom: 4px; text-align: center;">Request Early-Bird Access</h3>
+        <div class="badge-wrapper">
+            <span class="features-badge">✨ lifetime for 5€ • limited time offer ✨</span>
+        </div>
             
-        <!-- Form Section -->
         <form action="https://formspree.io/f/xpqgprol" method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="email">Your Email Address</label>
@@ -275,12 +278,12 @@
 
             <div class="form-group">
                 <label for="plant-types">What plants do you want to track?</label>
-                <textarea id="plant-names" name="plant-names" rows="3" placeholder="e.g., Monstera Deliciosa, Thai Constellation" required></textarea>
+                <textarea id="plant-types" name="plant-types" rows="3" placeholder="e.g., Monstera Deliciosa, Thai Constellation" required></textarea>
             </div>
 
-             <div class="form-group">
-                <label for="plant-names">Do you want names generated (you can always edit on the app later)?</label>
-                <textarea id="plant-names" name="plant-names" rows="3" placeholder="e.g., Yes / No: Monty - Monstera Deliciosa, Stella - Thai Constellation" required></textarea>
+            <div class="form-group">
+                <label for="name-generation">Do you want names generated (you can always edit on the app later)?</label>
+                <textarea id="name-generation" name="name-generation" rows="3" placeholder="e.g., Yes / No: Monty - Monstera Deliciosa, Stella - Thai Constellation" required></textarea>
             </div>
 
             <div class="form-group">
@@ -288,12 +291,12 @@
                 <div class="file-upload-wrapper" onclick="document.getElementById('photos').click()">
                     <span style="color: var(--accent-terracotta); font-weight: 600;">Click to upload images</span>
                     <input type="file" id="photos" name="photos" multiple style="display: none;">
+                </div>
             </div>
 
-             <div class="form-group">
+            <div class="form-group">
                 <label for="special-requests">Add any special requests here (additional fees may apply)</label>
-                <textarea id="plant-names" name="plant-names" rows="3" placeholder="e.g., Yes / No: Monty - Monstera Deliciosa, Stella - Thai Constellation" required></textarea>
-            </div>
+                <textarea id="special-requests" name="special-requests" rows="3" placeholder="e.g., Custom features, custom layout edits, etc." required></textarea>
             </div>
 
             <button type="submit" class="btn-primary">Submit Verification Request</button>
@@ -301,7 +304,6 @@
     </div>
 
 
-    <!-- HIDDEN VIEW: INVOICE & BILLING (Accessible only via special email link) -->
     <div id="hidden-billing-view" class="container" style="display: none;">
         <header>
             <h1>my garden</h1>
@@ -325,7 +327,6 @@
 
         <h3 style="margin-bottom: 16px;">Choose Your Payment Method</h3>
 
-        <!-- PayPal Option -->
         <div class="payment-option">
             <h4 style="color: #003087;">PayPal (Friends & Family)</h4>
             <p style="font-size: 0.9rem; margin-top: 8px;">
@@ -341,7 +342,6 @@
             </div>
         </div>
 
-        <!-- IBAN Option -->
         <div class="payment-option">
             <h4>Direct Bank Transfer (IBAN)</h4>
             <div style="font-size: 0.9rem; margin-top: 10px; line-height: 1.6;">
