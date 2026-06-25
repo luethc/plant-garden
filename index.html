@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3E5C3A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="My Garden">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>My Garden</title>
+<style>
+  :root{
+    --cream:#FBF5EA; --card:#FFFDF8; --ink:#3E5C3A; --ink2:#4A3B2E;
+    --muted:#8A7B66; --hint:#A99B85; --line:#E7DCC6; --line2:#ECE3D0;
+    --sage:#8FA67E; --terra:#C8795A; --terra-d:#B5664A; --rim:#D78A68;
+    --water:#7FB0C4; --amber:#C79A3A; --soggy:#6E8FB0; --bad:#B5604A; --good:#6E8A63;
+    --serif:ui-serif,Georgia,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--cream);color:var(--ink2);font-family:var(--sans)}
+  body{padding-bottom:84px}
+  .wrap{max-width:560px;margin:0 auto;padding:0 16px}
+  header.top{padding:18px 16px 6px;max-width:560px;margin:0 auto}
+  header.top h1{font-family:var(--serif);color:var(--ink);font-size:26px;font-weight:600;margin:0}
+  header.top .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .sect{margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+  .sect h2{font-size:14px;font-weight:600;margin:0;color:var(--ink)}
+  .sect .count{background:var(--terra);color:#fff;font-size:11px;border-radius:20px;padding:1px 8px;font-weight:600}
+  .sect.attn h2{color:var(--amber)} .sect.thrive h2{color:var(--good)}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+  /* cards */
+  .card{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;margin-bottom:10px}
+  .card .meta{flex:1;min-width:0}
+  .card .nm{font-family:var(--serif);font-size:17px;color:var(--ink);font-weight:600}
+  .card .sp{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .st{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:5px}
+  .creature{width:74px;height:74px;flex:none}
+  .creature svg{width:100%;height:100%;display:block}
+
+  /* rarity */
+  .rar{display:flex;gap:2px;margin-top:6px}
+  .rar i{width:11px;height:7px;border-radius:2px;background:var(--line)}
+  .rar i.on{background:var(--sage)} .rar i.hi{background:#7BA06A}
+
+  .btn{border:none;border-radius:13px;padding:8px 12px;font-size:12px;font-weight:600;font-family:var(--sans);cursor:pointer}
+  .btn.water{background:var(--terra);color:#fff}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .btn.out{background:transparent;border:1.5px solid var(--amber);color:var(--amber)}
+  .btn.full{width:100%;padding:12px;border-radius:14px;font-size:14px}
+  .btn:active{transform:scale(.97)}
+
+  /* garden grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:10px;text-align:center;cursor:pointer;position:relative}
+  .tile .creature{width:96px;height:96px;margin:0 auto}
+  .tile .nm{font-family:var(--serif);font-size:15px;color:var(--ink);font-weight:600;margin-top:2px}
+  .tile .st{font-size:10.5px;color:var(--muted);margin-top:2px;display:flex;align-items:center;justify-content:center;gap:4px}
+  .tile .rar{justify-content:center}
+  .badge{position:absolute;top:8px;right:8px;font-size:10px;background:var(--cream);border:1px solid var(--line);border-radius:20px;padding:1px 6px;color:var(--muted)}
+
+  /* status colors */
+  .s-thirsty{color:var(--terra-d)} .s-happy{color:var(--good)} .s-water{color:var(--water)}
+  .s-soggy{color:var(--soggy)} .s-light{color:var(--amber)} .s-unwell{color:var(--bad)} .s-unknown{color:var(--hint)}
+
+  /* detail overlay */
+  .overlay{position:fixed;inset:0;background:var(--cream);z-index:50;overflow-y:auto;display:none;animation:slide .22s ease}
+  .overlay.show{display:block}
+  @keyframes slide{from{transform:translateY(14px);opacity:.4}to{transform:none;opacity:1}}
+  .obar{position:sticky;top:0;background:var(--cream);padding:14px 16px;display:flex;align-items:center;gap:10px;z-index:2;border-bottom:1px solid var(--line)}
+  .obar .x{font-size:22px;background:none;border:none;color:var(--ink);cursor:pointer;line-height:1;padding:4px}
+  .hero{text-align:center;padding:14px}
+  .hero .creature{width:150px;height:150px;margin:0 auto}
+  .hero h2{font-family:var(--serif);font-size:24px;color:var(--ink);margin:6px 0 0}
+  .hero .sp{color:var(--muted);font-size:13px}
+  .hero .pers{color:var(--ink2);font-size:13px;margin-top:6px;font-style:italic}
+  .facts{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:4px 14px;margin:8px 0}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line2);font-size:13px;gap:10px}
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--muted)} .row .v{color:var(--ink2);text-align:right;font-weight:500}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+  .pill{font-size:11px;border-radius:20px;padding:3px 9px;background:var(--cream);border:1px solid var(--line);color:var(--muted)}
+  .pill.tox{background:#f6e7e2;border-color:#e6c3b8;color:#a4543f}
+  textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;font-family:var(--sans);font-size:13px;resize:vertical;min-height:64px;background:var(--card);color:var(--ink2)}
+  input[type=date]{border:1px solid var(--line);border-radius:10px;padding:7px 9px;font-family:var(--sans);font-size:13px;background:var(--card);color:var(--ink2)}
+  .lbl{font-size:12px;font-weight:600;color:var(--ink);margin:14px 0 6px;display:block}
+  .journal{display:flex;gap:8px;flex-wrap:wrap}
+  .journal img{width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+  .jadd{width:72px;height:72px;border-radius:12px;border:1.5px dashed var(--line);background:var(--card);color:var(--hint);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+  /* bottom nav */
+  nav.tab{position:fixed;bottom:0;left:0;right:0;background:#F4ECDD;border-top:1px solid var(--line);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom)}
+  nav.tab button{flex:1;background:none;border:none;padding:10px 0 12px;color:var(--hint);font-size:11px;font-family:var(--sans);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+  nav.tab button.on{color:var(--ink);font-weight:600}
+  nav.tab svg{width:22px;height:22px}
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(74,59,46,.4);z-index:60;display:none;align-items:flex-end;justify-content:center}
+  .modal.show{display:flex}
+  .sheet{background:var(--cream);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));animation:up .25s ease}
+  @keyframes up{from{transform:translateY(40px)}to{transform:none}}
+  .sheet h3{font-family:var(--serif);color:var(--ink);margin:0 0 4px;font-size:19px}
+  .sheet p.s{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px;font-size:14px;text-align:left;cursor:pointer;color:var(--ink2)}
+  .opt:active{background:#fff}
+  .field{margin-bottom:10px}
+  .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink2)}
+  .empty{text-align:center;color:var(--hint);font-size:13px;padding:24px}
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:70;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .hist{display:flex;gap:5px;align-items:center;margin-top:4px}
+  .hist i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+  .hist i.on{background:var(--sage)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>my garden</h1>
+  <div class="sub" id="greeting"></div>
+</header>
+
+<main class="wrap" id="view"></main>
+
+<nav class="tab">
+  <button data-tab="today" class="on" onclick="go('today')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 C12 3 6 9 6 14 a6 6 0 0 0 12 0 C18 9 12 3 12 3 Z"/></svg>today
+  </button>
+  <button data-tab="garden" onclick="go('garden')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>garden
+  </button>
+  <button data-tab="add" onclick="openAdd()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add plant
+  </button>
+</nav>
+
+<div class="overlay" id="detail"></div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- plant data (the cast of 25) ---------- */
+const BASE = [
+  {id:'monty', name:'Monty', sp:'Monstera deliciosa', shape:'monstera', col:'#4f8a44', acc:null, size:'L', rarity:2, light:'Bright indirect', group:'bright', water:7, toxic:true, tip:'The showpiece. Wipe leaves; water when the top 2–3 cm is dry.'},
+  {id:'delila', name:'Delila', sp:'Monstera deliciosa', shape:'monstera', col:'#57904c', acc:null, size:'L', rarity:2, light:'Bright indirect', group:'bright', water:8, toxic:true, tip:'Monty’s calmer sibling.'},
+  {id:'stella', name:'Stella', sp:'Monstera Thai Constellation', shape:'monstera', col:'#5d9350', acc:'#e6dca0', size:'M', rarity:5, light:'Bright indirect', group:'bright', water:7, toxic:true, tip:'Crown jewel — creamy-yellow starry flecks. Bright light keeps the variegation.'},
+  {id:'albus', name:'Albus', sp:'Monstera albo variegata', shape:'monstera', col:'#5d9350', acc:'#f4f1e6', size:'M', rarity:5, light:'Bright indirect (more light)', group:'bright', water:7, toxic:true, tip:'Crown jewel — white half-moon sectors sunburn in direct sun.'},
+  {id:'mojo', name:'Mojo', sp:'Monstera adansonii (monkey)', shape:'monstera', col:'#4f8444', acc:null, holes:true, size:'M', rarity:2, light:'Bright indirect', group:'bright', water:6, toxic:true, tip:'Holey monkey-mask leaves. Likes a moss pole to climb.'},
+  {id:'pip', name:'Pip', sp:'Sarracenia (pitcher plant)', shape:'pitcher', col:'#8fae5f', acc:'#b5564a', size:'S', rarity:3, light:'Full sun', group:'sun', water:2, toxic:false, special:'carnivore', tip:'Carnivorous! ONLY rain/distilled water, sitting in a tray — never tap water, never fertilizer. Needs a cold winter rest.'},
+  {id:'effie', name:'Effie', sp:'Dieffenbachia (dumb cane)', shape:'broad', col:'#6aa15a', acc:'#e9e4c6', size:'M', rarity:1, light:'Bright indirect', group:'bright', water:7, toxic:true, tip:'Toxic sap — keep away from mouths and pets.'},
+  {id:'luna', name:'Luna', sp:"Ficus 'Shivereana' Moonshine", shape:'tree', col:'#7e9a78', acc:'#cdd8c0', size:'M', rarity:4, light:'Bright indirect', group:'bright', water:9, toxic:true, tip:'Rubber-tree care. Wipe the leaves; let the top inch dry.'},
+  {id:'splash', name:'Splash', sp:"Alocasia macrorrhiza 'Splash'", shape:'broad', col:'#5a8a55', acc:'#eef0e2', size:'M', rarity:4, light:'Bright indirect', group:'bright', water:6, toxic:true, tip:'Keep lightly moist. May go dormant — don’t panic if it drops leaves.'},
+  {id:'phil', name:'Phil', sp:'Heartleaf philodendron', shape:'heart', col:'#3f7a3a', acc:null, size:'M', rarity:1, light:'Low–bright indirect', group:'low', water:10, toxic:true, tip:'Nearly unkillable. Trails beautifully.'},
+  {id:'goldie', name:'Goldie', sp:'Golden pothos', shape:'heart', col:'#6fa24a', acc:'#d9c651', size:'M', rarity:1, light:'Low–bright indirect', group:'low', water:10, toxic:true, tip:'Forgiving and fast. Trim to keep bushy.'},
+  {id:'penny', name:'Penny', sp:'Money tree (Pachira)', shape:'tree', col:'#5c9150', acc:null, size:'M', rarity:1, light:'Bright indirect', group:'bright', water:12, toxic:false, tip:'Braided trunk. Hates soggy roots — let it dry between drinks.'},
+  {id:'pia', name:'Pia', sp:'Pilea peperomioides', shape:'round', col:'#6aa45a', acc:null, size:'S', rarity:2, light:'Bright indirect', group:'bright', water:7, toxic:false, tip:'Rotate every few days for even growth. Makes lots of pups.'},
+  {id:'webster', name:'Webster', sp:'Spider plant (green)', shape:'strappy', col:'#6fa256', acc:null, size:'S', rarity:1, light:'Bright indirect', group:'bright', water:7, toxic:false, tip:'The plain-green one; no babies yet.'},
+  {id:'charlotte', name:'Charlotte', sp:"Spider plant 'Variegatum'", shape:'strappy', col:'#6fa256', acc:'#eef0e2', size:'M', rarity:2, light:'Bright indirect', group:'bright', water:7, toxic:false, tip:'Generous mama — will dangle baby spiderettes.'},
+  {id:'parker', name:'Parker', sp:"Spider plant 'Variegatum'", shape:'strappy', col:'#6fa256', acc:'#eef0e2', size:'M', rarity:2, light:'Bright indirect', group:'bright', water:7, toxic:false, tip:"Charlotte’s twin."},
+  {id:'vera', name:'Vera', sp:'Aloe vera', shape:'spiky', col:'#7ba083', acc:'#e9f1e4', size:'S', rarity:1, light:'Bright direct sun', group:'sun', water:18, toxic:false, tip:'Succulent — soak deeply only when the soil is fully dry. Loves a sunny sill.'},
+  {id:'coraline', name:'Coraline', sp:'Fancy-leaf Caladium', shape:'broad', col:'#7aa05a', acc:'#d87a9b', size:'M', rarity:2, light:'Bright indirect, warm', group:'bright', water:4, toxic:true, tip:'Keep moist while growing. Goes dormant in winter — totally normal.'},
+  {id:'grace', name:'Grace', sp:'Prayer plant (Maranta)', shape:'broad', col:'#4e7a44', acc:'#2f5a36', size:'S', rarity:2, light:'Medium indirect', group:'bright', water:4, toxic:false, tip:'Folds her leaves up at night. Loves humidity and filtered/rain water.'},
+  {id:'tilly', name:'Tilly', sp:'Tillandsia (air plant)', shape:'spiky', col:'#8aa775', acc:null, size:'XS', rarity:2, light:'Bright indirect', group:'bright', water:7, toxic:false, special:'pups', tip:'She bloomed — so she’s winding down, but watch her base for pups. Soak ~weekly, dry upside down.'},
+  {id:'drake', name:'Drake', sp:'Dracaena marginata', shape:'spiky', col:'#4a7a40', acc:'#9a4a3a', size:'L', rarity:1, light:'Bright indirect', group:'bright', water:10, toxic:true, tip:'Spiky dragon tree. Sensitive to fluoride — use filtered water.'},
+  {id:'vista', name:'Vista', sp:'Variegated Hosta', shape:'broad', col:'#6f9a64', acc:'#e6e7c8', size:'M', rarity:1, light:'Part shade', group:'balcony', water:4, toxic:true, tip:'Balcony perennial. Dies back in winter and returns in spring.'},
+  {id:'bea', name:'Bea', sp:'Begonia (bronze-leaf)', shape:'flower', col:'#7a6a55', acc:'#e58fb0', size:'S', rarity:1, light:'Bright / part sun', group:'balcony', water:4, toxic:true, tip:'Cheery bloomer. An annual in Munich frost — enjoy her for the season.'},
+  {id:'misty', name:'Misty', sp:'Diamond Frost (Euphorbia)', shape:'flower', col:'#6fa256', acc:'#ffffff', size:'S', rarity:2, light:'Sun / part sun', group:'balcony', water:4, toxic:true, tip:'Airy white blooms. Heat-lover; shares Bea’s window box.'},
+  {id:'shortcake', name:'Shortcake', sp:'Strawberry plant', shape:'flower', col:'#5c9150', acc:'#d8473f', size:'S', rarity:1, light:'Full sun', group:'sun', water:3, toxic:false, tip:'Keep evenly moist. Sends out runners and fruits in season.'}
+];
+
+/* ---------- the cast: built-in base + your custom layer (persists on this device) ---------- */
+const CKEY='garden_custom_v1';
+let custom = JSON.parse(localStorage.getItem(CKEY) || '{"added":[],"edits":{},"deleted":[]}');
+let SEED = [];
+function buildSeed(){
+  SEED = BASE.filter(p=>!custom.deleted.includes(p.id)).map(p=>Object.assign({}, p, custom.edits[p.id]||{}));
+  custom.added.forEach(p=>SEED.push(p));
+}
+function saveCustom(){ localStorage.setItem(CKEY, JSON.stringify(custom)); buildSeed(); }
+buildSeed();
+
+/* ---------- per-plant state (watering, notes, photos) ---------- */
+const KEY='garden_state_v2';
+let store = JSON.parse(localStorage.getItem(KEY) || '{}');
+function plantState(id){
+  if(!store[id]) store[id] = {last:null, mood:null, notes:'', journal:[], history:[]};
+  return store[id];
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(store)); }
+const DAY=86400000, now=()=>Date.now();
+function byId(id){ return SEED.find(p=>p.id===id); }
+function isCustom(id){ return String(id).startsWith('u'); }
+function patchPlant(id, fields){
+  if(isCustom(id)){ const p=custom.added.find(x=>x.id===id); if(p) Object.assign(p, fields); }
+  else { custom.edits[id]=Object.assign(custom.edits[id]||{}, fields); }
+  saveCustom();
+}
+function deletePlant(id){
+  if(isCustom(id)) custom.added=custom.added.filter(x=>x.id!==id);
+  else if(!custom.deleted.includes(id)) custom.deleted.push(id);
+  delete store[id]; save(); saveCustom();
+  closeModal(); closeDetail(); go('garden'); toast('plant removed');
+}
+function esc(s){ return (s||'').replace(/"/g,'&quot;'); }
+
+/* ---------- watering / mood logic ---------- */
+function dueInfo(p){
+  const st=plantState(p.id);
+  if(!st.last) return {status:'unknown', days:null, label:'tap to set last watered'};
+  const due = st.last + p.water*DAY;
+  const days = Math.ceil((due-now())/DAY);
+  if(days<=0) return {status:'thirsty', days, label: days===0?'thirsty · due today':`thirsty · ${-days}d overdue`};
+  if(now()-st.last < DAY) return {status:'water', days, label:'just watered 💧'};
+  return {status:'happy', days, label:`happy · water in ${days}d`};
+}
+function mood(p){
+  const st=plantState(p.id);
+  if(st.mood) return st.mood;                 // manual flag from check-in
+  return dueInfo(p).status==='thirsty' ? 'thirsty' : (dueInfo(p).status==='unknown'?'unknown': (dueInfo(p).status==='water'?'water':'happy'));
+}
+const MOODWORD={happy:'happy',thirsty:'thirsty',water:'just watered',soggy:'soggy',light:'wants more light',unwell:'under the weather',unknown:'new here'};
+
+/* ---------- creature art (placeholder, generated) ---------- */
+function face(m){
+  // eyes + mouth on the pot, mood-driven. center ~ (60,96)
+  const eye=(x)=>`<ellipse cx="${x}" cy="95" rx="2.3" ry="2.7" fill="#4A3B2E"/><circle cx="${x+.6}" cy="94.2" r="0.7" fill="#FBF5EA"/>`;
+  let m1, extra='';
+  if(m==='thirsty'){ m1='M55,100 Q60,97 65,100'; extra=`<path d="M70,88 c-2,3 -2,5 0,5 c2,0 2,-2 0,-5" fill="#7FB0C4"/>`; }
+  else if(m==='water'){ m1='M54,99 Q60,106 66,99 Z'; extra=`<path d="M44,84 l1,3 l3,1 l-3,1 l-1,3 l-1,-3 l-3,-1 l3,-1 Z" fill="#F2C84B"/>`; }
+  else if(m==='soggy'){ m1='M55,101 Q60,98 65,101'; extra=`<path d="M44,90 c-2,3 -2,5 0,5 c2,0 2,-2 0,-5" fill="#6E8FB0"/>`; }
+  else if(m==='light'){ m1='M55,100 Q60,103 65,100'; extra=`<g stroke="#C79A3A" stroke-width="1.5"><circle cx="46" cy="86" r="3" fill="#F2C84B" stroke="none"/><line x1="46" y1="80" x2="46" y2="82"/><line x1="40" y1="86" x2="42" y2="86"/></g>`; }
+  else if(m==='unwell'){ return `<path d="M52,93 l4,4 M56,93 l-4,4" stroke="#4A3B2E" stroke-width="1.6"/><path d="M64,93 l4,4 M68,93 l-4,4" stroke="#4A3B2E" stroke-width="1.6"/><path d="M55,101 Q60,98 65,101" stroke="#4A3B2E" stroke-width="1.8" fill="none" stroke-linecap="round"/>`; }
+  else if(m==='unknown'){ m1='M56,100 L64,100'; }
+  else { m1='M54,99 Q60,104 66,99'; } // happy
+  const cheeks = (m==='happy'||m==='water')?`<ellipse cx="50" cy="99" rx="3.4" ry="2" fill="#E59C7A" opacity=".5"/><ellipse cx="70" cy="99" rx="3.4" ry="2" fill="#E59C7A" opacity=".5"/>`:'';
+  return cheeks+eye(55)+eye(65)+`<path d="${m1}" stroke="#4A3B2E" stroke-width="1.8" fill="none" stroke-linecap="round"/>`+extra;
+}
+function pot(){ return `<path d="M40,84 C41,96 46,110 48,112 L72,112 C74,110 79,96 80,84 Z" fill="#C8795A"/><path d="M40,84 C41,94 44,106 47,111 L52,112 C48,103 45,93 44,84 Z" fill="#B5664A" opacity=".4"/><ellipse cx="60" cy="84" rx="22" ry="4.5" fill="#D78A68"/><ellipse cx="60" cy="84" rx="17" ry="3" fill="#5A4636"/>`; }
+function leaf(path, cx, rot, scale, fill, accFill, accPath){
+  let s=`<g transform="translate(${cx},82) rotate(${rot}) scale(${scale})"><path d="${path}" fill="${fill}"/>`;
+  if(accFill && accPath) s+=`<path d="${accPath}" fill="${accFill}" opacity=".9"/>`;
+  s+=`</g>`; return s;
+}
+// leaf path library (base at 0,0 pointing up)
+const L={
+  monstera:'M0,-2 C 12,-2 20,-9 22,-18 C 14,-22 8,-19 7,-15 C 12,-30 6,-44 0,-50 C -6,-44 -12,-30 -7,-15 C -8,-19 -14,-22 -22,-18 C -20,-9 -12,-2 0,-2 Z',
+  heart:'M0,-2 C 9,-6 14,-16 9,-24 C 5,-28 1,-26 0,-23 C -1,-26 -5,-28 -9,-24 C -14,-16 -9,-6 0,-2 Z',
+  oval:'M0,0 C -10,-6 -11,-26 0,-34 C 11,-26 10,-6 0,0 Z',
+  blade:'M-3,0 C -4,-16 -2,-34 0,-42 C 2,-34 4,-16 3,0 Z',
+  round:'M0,-10 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0',
+};
+function creature(p, m){
+  let plant='';
+  const n = p.size==='L'?5 : p.size==='XS'?3 : p.size==='S'?3 : 4;
+  const stems = [];
+  if(p.shape==='monstera'){
+    const ang=[-42,-20,0,20,42], sc=[.72,.86,1,.86,.72], cx=[44,52,60,68,76];
+    for(let i=0;i<n;i++){const idx=Math.floor((5-n)/2)+i;
+      stems.push(`<path d="M60,82 Q${cx[idx]},66 ${cx[idx]},58" stroke="#6E8A5E" stroke-width="3" fill="none" stroke-linecap="round"/>`);
+      let acc=null, accP=null;
+      if(p.acc){ acc=p.acc; accP='M-6,-22 a4,7 0 1,0 8,0 a4,7 0 1,0 -8,0 Z'; }
+      let extra='';
+      if(p.holes){ extra=`<g transform="translate(${cx[idx]},82) rotate(${ang[idx]}) scale(${sc[idx]})"><ellipse cx="8" cy="-22" rx="2.4" ry="4.5" fill="var(--cream)"/><ellipse cx="-8" cy="-30" rx="2.4" ry="4.5" fill="var(--cream)"/></g>`; }
+      plant += leaf(L.monstera, cx[idx], ang[idx], sc[idx], shade(p.col,i), acc, accP) + extra;
+    }
+  } else if(p.shape==='heart'){
+    const ang=[-46,-22,0,22,46];
+    for(let i=0;i<n;i++){const idx=Math.floor((5-n)/2)+i;
+      let acc=p.acc?p.acc:null, accP=acc?'M-3,-18 a2.4,4 0 1,0 5,0 a2.4,4 0 1,0 -5,0 Z':null;
+      plant += `<path d="M60,82 Q${48+idx*6},70 ${44+idx*8},62" stroke="#6E8A5E" stroke-width="2.4" fill="none"/>`+leaf(L.heart,44+idx*8,ang[idx],1.1,shade(p.col,i),acc,accP);
+    }
+  } else if(p.shape==='oval'||p.shape==='broad'){
+    const ang=[-38,-14,12,38], sc=[.9,1.05,1,.86];
+    const k=Math.min(n,4);
+    for(let i=0;i<k;i++){
+      let acc=p.acc?p.acc:null, accP=acc?'M-4,-20 a3,7 0 1,0 8,0 a3,7 0 1,0 -8,0 Z':null;
+      plant += leaf(L.oval, 48+i*8, ang[i], sc[i], shade(p.col,i), acc, accP);
+    }
+  } else if(p.shape==='spiky'){
+    const cnt=p.id==='drake'?9:7;
+    for(let i=0;i<cnt;i++){const a=-60+i*(120/(cnt-1)), sc=.9+(i%2?.1:0);
+      let acc=p.acc?`<g transform="translate(60,82) rotate(${a}) scale(${sc})"><path d="M-2,-38 C0,-44 0,-44 2,-38 C0,-36 0,-36 -2,-38 Z" fill="${p.acc}"/></g>`:'';
+      plant += leaf(L.blade,60,a,sc,shade(p.col,i%3),null,null)+acc;
+    }
+    if(p.id==='vera'){ for(let i=0;i<5;i++) plant+=`<circle cx="${52+i*4}" cy="${60+(i%2)*8}" r="1" fill="#eef5ea"/>`; }
+  } else if(p.shape==='strappy'){
+    const cnt=7;
+    for(let i=0;i<cnt;i++){const a=-78+i*26;
+      const arch=`M60,82 Q${60+Math.sin(a*Math.PI/180)*26},${50} ${60+Math.sin(a*Math.PI/180)*40},${58}`;
+      plant += `<path d="${arch}" stroke="${shade(p.col,i%2)}" stroke-width="4.5" fill="none" stroke-linecap="round"/>`;
+      if(p.acc) plant += `<path d="${arch}" stroke="${p.acc}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`;
+    }
+  } else if(p.shape==='round'){
+    const ang=[-44,-20,4,28,50];
+    for(let i=0;i<n;i++){const idx=i;
+      plant += `<path d="M60,82 Q${52+idx*5},68 ${48+idx*7},${58-idx*2}" stroke="#7a9b66" stroke-width="2" fill="none"/>`+
+        `<g transform="translate(${48+idx*7},${56-idx*2}) scale(${.9})"><circle r="11" fill="${shade(p.col,i)}"/><circle r="1.4" fill="#cfe0b8"/></g>`;
+    }
+  } else if(p.shape==='tree'){
+    plant += `<rect x="56" y="50" width="8" height="36" rx="3" fill="#9a7b54"/>`;
+    if(p.id==='penny') plant += `<path d="M58,86 q2,-6 0,-12 M62,86 q-2,-6 0,-12" stroke="#7a5e3a" stroke-width="1.2" fill="none"/>`;
+    for(let i=0;i<6;i++){const a=i*60; const rx=60+Math.cos(a*Math.PI/180)*16, ry=46+Math.sin(a*Math.PI/180)*14;
+      plant += `<ellipse cx="${rx}" cy="${ry}" rx="9" ry="6" transform="rotate(${a} ${rx} ${ry})" fill="${shade(p.col,i%3)}"/>`;
+      if(p.acc&&i%2) plant += `<ellipse cx="${rx}" cy="${ry}" rx="4" ry="2.6" transform="rotate(${a} ${rx} ${ry})" fill="${p.acc}" opacity=".8"/>`;
+    }
+  } else if(p.shape==='pitcher'){
+    for(let i=0;i<5;i++){const x=46+i*7, h=24+(i%3)*8, a=-12+i*6;
+      plant += `<g transform="translate(${x},84) rotate(${a})"><path d="M-4,0 C -6,-${h} -2,-${h+6} 0,-${h+6} C 2,-${h+6} 6,-${h} 4,0 Z" fill="${shade(p.col,i%2)}"/><path d="M0,-${h+2} C -3,-${h+8} 3,-${h+8} 1,-${h+2}" fill="${p.acc}" opacity=".7"/><path d="M-2,-6 L-1,-${h-4} M2,-6 L1,-${h-4}" stroke="${p.acc}" stroke-width="0.8" opacity=".6"/></g>`;
+    }
+  } else if(p.shape==='flower'){
+    const ang=[-40,-12,16,40];
+    for(let i=0;i<3;i++) plant += leaf(L.heart,50+i*8,ang[i],1.1,shade(p.col,i),null,null);
+    for(let i=0;i<5;i++){const x=44+i*8,y=54+(i%2)*8;
+      plant += `<circle cx="${x}" cy="${y}" r="3.2" fill="${p.acc}"/><circle cx="${x}" cy="${y}" r="1" fill="#f6e07a"/>`;
+    }
+  }
+  return `<svg viewBox="0 0 120 120">${plant}${pot()}${face(m)}</svg>`;
+}
+function shade(hex,i){ // slight tonal variation between leaves
+  const d=[0,-12,10,-6,6][i%5]; const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)+d, g=((n>>8)&255)+d, b=(n&255)+d;
+  r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+/* ---------- rarity bars ---------- */
+function rarity(n){ let s='<span class="rar">'; for(let i=0;i<5;i++) s+=`<i class="${i<n?(n>=4?'hi':'on'):''}"></i>`; return s+'</span>'; }
+
+/* ---------- views ---------- */
+let tab='today';
+function go(t){ tab=t; closeDetail(); document.querySelectorAll('nav.tab button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t)); render(); window.scrollTo(0,0); }
+
+function statusDot(s){ const c={thirsty:'var(--terra)',happy:'var(--good)',water:'var(--water)',soggy:'var(--soggy)',light:'var(--amber)',unwell:'var(--bad)',unknown:'var(--hint)'}[s]||'var(--hint)'; return `<span class="dot" style="background:${c}"></span>`; }
+
+function render(){
+  const v=document.getElementById('view');
+  if(tab==='today') v.innerHTML=renderToday();
+  else v.innerHTML=renderGarden();
+}
+
+function renderToday(){
+  const thirsty = SEED.filter(p=>dueInfo(p).status==='thirsty');
+  const attn = SEED.filter(p=>['soggy','light','unwell'].includes(plantState(p.id).mood));
+  const setup = SEED.filter(p=>dueInfo(p).status==='unknown');
+  const thriving = SEED.filter(p=>!thirsty.includes(p)&&!attn.includes(p)&&!setup.includes(p));
+  let h='';
+  // needs water
+  h+=`<div class="sect"><span class="dot" style="background:var(--water)"></span><h2>needs water today</h2>${thirsty.length?`<span class="count">${thirsty.length}</span>`:''}</div>`;
+  h+= thirsty.length? thirsty.map(p=>cardRow(p,true)).join('') : `<div class="empty">All watered up. Nothing thirsty today 🌿</div>`;
+  // needs attention
+  if(attn.length){ h+=`<div class="sect attn"><span class="dot" style="background:var(--amber)"></span><h2>needs attention</h2><span class="count">${attn.length}</span></div>`; h+=attn.map(p=>cardRow(p,false)).join(''); }
+  // set up
+  if(setup.length){ h+=`<div class="sect"><span class="dot" style="background:var(--hint)"></span><h2>set last-watered</h2><span class="count">${setup.length}</span></div>`; h+=setup.slice(0,40).map(p=>cardRow(p,false)).join(''); }
+  // thriving
+  h+=`<div class="sect thrive"><span class="dot" style="background:var(--good)"></span><h2>thriving</h2></div>`;
+  h+= thriving.length? thriving.map(p=>cardRow(p,false)).join('') : `<div class="empty">—</div>`;
+  return h;
+}
+function cardRow(p, showWater){
+  const d=dueInfo(p), m=plantState(p.id).mood||d.status;
+  const label = plantState(p.id).mood? MOODWORD[plantState(p.id).mood] : d.label;
+  return `<div class="card" onclick="openDetail('${p.id}')">
+    <div class="creature">${creature(p,m)}</div>
+    <div class="meta">
+      <div class="nm">${p.name}</div><div class="sp">${p.sp}</div>
+      <div class="st s-${m}">${statusDot(m)}${label}</div>
+    </div>
+    ${showWater?`<button class="btn water" onclick="event.stopPropagation();waterNow('${p.id}')">water ✓</button>`:`<button class="btn ghost" onclick="event.stopPropagation();openDetail('${p.id}')">open</button>`}
+  </div>`;
+}
+
+function renderGarden(){
+  let h=`<div class="sect"><h2>all plants</h2><span class="count">${SEED.length}</span></div><div class="grid">`;
+  h+= SEED.map(p=>{ const m=plantState(p.id).mood||dueInfo(p).status;
+    return `<div class="tile" onclick="openDetail('${p.id}')">
+      <span class="badge">rarity ${p.rarity}</span>
+      <div class="creature">${creature(p,m)}</div>
+      <div class="nm">${p.name}</div>
+      <div class="st s-${m}">${statusDot(m)}${MOODWORD[m]||'happy'}</div>
+      ${rarity(p.rarity)}
+    </div>`; }).join('');
+  return h+'</div>';
+}
+
+/* ---------- detail ---------- */
+let curId=null;
+function openDetail(id){
+  curId=id; const p=byId(id), st=plantState(id), d=dueInfo(p), m=st.mood||d.status;
+  const lastStr = st.last? new Date(st.last).toLocaleDateString() : 'not set';
+  const dateVal = st.last? new Date(st.last).toISOString().slice(0,10) : '';
+  const hist = histDots(st);
+  const el=document.getElementById('detail');
+  el.innerHTML=`
+   <div class="obar"><button class="x" onclick="closeDetail()">‹</button>
+     <strong style="font-family:var(--serif);color:var(--ink);font-size:18px;flex:1">${p.name}</strong>
+     <button class="x" style="font-size:14px;font-family:var(--sans);color:var(--muted)" onclick="openEdit('${p.id}')">edit</button></div>
+   <div class="wrap">
+    <div class="hero">
+      <div class="creature">${creature(p,m)}</div>
+      <h2>${p.name}</h2><div class="sp">${p.sp}</div>
+      <div class="st s-${m}" style="justify-content:center;display:flex;gap:5px;margin-top:6px">${statusDot(m)}${st.mood?MOODWORD[m]:d.label}</div>
+    </div>
+    <div class="pills">
+      <span class="pill">rarity ${p.rarity}/5</span>
+      <span class="pill">${p.size}</span>
+      ${p.toxic?`<span class="pill tox">⚠ toxic to pets</span>`:''}
+      ${p.special==='carnivore'?`<span class="pill tox">carnivorous</span>`:''}
+      ${p.special==='pups'?`<span class="pill">watch for pups</span>`:''}
+    </div>
+    <button class="btn water full" onclick="waterNow('${p.id}')">💧 I watered ${p.name} today</button>
+    <div class="facts" style="margin-top:10px">
+      <div class="row"><span class="k">Rarity</span><span class="v">${rarity(p.rarity)}</span></div>
+      <div class="row"><span class="k">Light</span><span class="v">${p.light}</span></div>
+      <div class="row"><span class="k">Water every</span><span class="v">~${p.water} days</span></div>
+      <div class="row"><span class="k">Last watered</span><span class="v"><input type="date" value="${dateVal}" onchange="setLast('${p.id}',this.value)"> </span></div>
+      <div class="row"><span class="k">Next due</span><span class="v">${st.last?dueWord(d):'—'}</span></div>
+    </div>
+    <div style="font-size:13px;color:var(--ink2);line-height:1.6;background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:12px">💡 ${p.tip}</div>
+
+    <span class="lbl">How is ${p.name} doing?</span>
+    <div class="pills">
+      <button class="pill" onclick="setMood('${p.id}',null)" ${!st.mood?'style="background:#e8efe2;border-color:#cdd8c0"':''}>👍 fine</button>
+      <button class="pill" onclick="setMood('${p.id}','soggy')" ${st.mood==='soggy'?'style="background:#e3eaf2;border-color:#c3d2e6"':''}>💧 soggy</button>
+      <button class="pill" onclick="setMood('${p.id}','light')" ${st.mood==='light'?'style="background:#f4ecd5;border-color:#e6d8a8"':''}>☀️ needs light</button>
+      <button class="pill" onclick="setMood('${p.id}','unwell')" ${st.mood==='unwell'?'style="background:#f6e7e2;border-color:#e6c3b8"':''}>🩹 unwell</button>
+    </div>
+
+    <span class="lbl">Watering history</span>
+    <div class="hist">${hist||'<span style="color:var(--hint);font-size:12px">no waterings logged yet</span>'}</div>
+
+    <span class="lbl">Notes</span>
+    <textarea placeholder="anything you want to remember about ${p.name}…" onchange="setNotes('${p.id}',this.value)">${st.notes||''}</textarea>
+
+    <span class="lbl">Photo journal</span>
+    <div class="journal">
+      ${(st.journal||[]).map((src,i)=>`<img src="${src}" onclick="rmPhoto('${p.id}',${i})" title="tap to remove">`).join('')}
+      <label class="jadd">+<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addPhoto('${p.id}',this)"></label>
+    </div>
+    <div style="height:30px"></div>
+   </div>`;
+  el.classList.add('show'); document.body.style.overflow='hidden'; el.scrollTop=0;
+}
+function dueWord(d){ if(d.days<=0) return d.days===0?'today':`${-d.days}d overdue`; return `in ${d.days} days`; }
+function closeDetail(){ const el=document.getElementById('detail'); el.classList.remove('show'); document.body.style.overflow=''; render(); }
+function histDots(st){ const h=(st.history||[]).slice(-10); return h.map(()=>'<i class="on"></i>').join(''); }
+
+function waterNow(id){
+  const st=plantState(id); st.last=now(); st.mood=null;
+  st.history=(st.history||[]); st.history.push(now()); save();
+  toast(`💧 ${byId(id).name} watered`);
+  if(document.getElementById('detail').classList.contains('show')) openDetail(id); else render();
+}
+function setLast(id,val){ const st=plantState(id); st.last= val? new Date(val).getTime():null; save(); openDetail(id); }
+function setMood(id,m){ plantState(id).mood=m; save(); openDetail(id); }
+function setNotes(id,v){ plantState(id).notes=v; save(); }
+function addPhoto(id,inp){ const f=inp.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ const st=plantState(id); st.journal=(st.journal||[]); st.journal.push(r.result); save(); openDetail(id); toast('📸 added to journal'); };
+  r.readAsDataURL(f); }
+function rmPhoto(id,i){ const st=plantState(id); st.journal.splice(i,1); save(); openDetail(id); }
+
+/* ---------- add plant ---------- */
+function openAdd(){
+  const s=document.getElementById('sheet');
+  s.innerHTML=`<h3>add a plant</h3><p class="s">For one we didn't photograph.</p>
+    <div class="field"><input id="ap_name" placeholder="Name (e.g. Fernando)"></div>
+    <div class="field"><input id="ap_sp" placeholder="What is it? (e.g. Boston fern)"></div>
+    <div class="field"><select id="ap_shape">
+      <option value="broad">leafy / broad</option><option value="monstera">monstera-ish</option>
+      <option value="heart">heart / trailing</option><option value="spiky">spiky / succulent</option>
+      <option value="strappy">grassy / strappy</option><option value="round">round leaves</option>
+      <option value="tree">tree / trunk</option><option value="flower">flowering</option>
+    </select></div>
+    <div class="field"><input id="ap_water" type="number" value="7" min="1" placeholder="Water every N days"></div>
+    <button class="btn water full" onclick="doAdd()">add to my garden</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeModal()">cancel</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+function doAdd(){
+  const name=val('ap_name')||'New plant';
+  const p={ id:'u'+Date.now(), name, sp:val('ap_sp')||'unknown', shape:val('ap_shape'), col:'#5c9150', acc:null,
+    size:'M', rarity:1, light:'Bright indirect', group:'bright', water:parseInt(val('ap_water'))||7, toxic:false, tip:'Added by you — edit care notes anytime.' };
+  custom.added.push(p); saveCustom(); closeModal(); go('garden'); toast(`🌱 ${name} added`);
+}
+function val(id){ return document.getElementById(id).value.trim(); }
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+
+/* ---------- edit / delete a plant ---------- */
+function openEdit(id){
+  const p=byId(id), s=document.getElementById('sheet');
+  const opt=(v,cur)=>`<option ${v===cur?'selected':''}>${v}</option>`;
+  s.innerHTML=`<h3>edit ${esc(p.name)}</h3><p class="s">Changes save on this device.</p>
+    <div class="field"><input id="e_name" value="${esc(p.name)}" placeholder="Name"></div>
+    <div class="field"><input id="e_sp" value="${esc(p.sp)}" placeholder="Species"></div>
+    <div class="field"><input id="e_light" value="${esc(p.light)}" placeholder="Light"></div>
+    <div class="field" style="display:flex;gap:8px">
+      <select id="e_size" style="flex:1">${['XS','S','M','L'].map(v=>opt(v,p.size)).join('')}</select>
+      <input id="e_water" type="number" min="1" value="${p.water}" placeholder="Water every (days)" style="flex:1">
+      <input id="e_rar" type="number" min="1" max="5" value="${p.rarity}" placeholder="Rarity" style="width:72px">
+    </div>
+    <button class="btn water full" onclick="saveEdit('${id}')">save changes</button>
+    <button class="btn ghost full" style="margin-top:8px;color:var(--bad);border-color:#e6c3b8" onclick="confirmDel('${id}')">remove ${esc(p.name)}</button>
+    <button class="btn ghost full" style="margin-top:8px;border:none" onclick="closeModal()">cancel</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+function saveEdit(id){
+  patchPlant(id,{ name:val('e_name')||byId(id).name, sp:val('e_sp')||byId(id).sp, light:val('e_light')||byId(id).light,
+    size:document.getElementById('e_size').value, water:parseInt(val('e_water'))||7,
+    rarity:Math.max(1,Math.min(5,parseInt(val('e_rar'))||1)) });
+  closeModal(); openDetail(id); toast('saved');
+}
+function confirmDel(id){ if(confirm('Remove this plant? Its notes, history and photos are deleted too.')) deletePlant(id); }
+
+/* ---------- check-in + reminders (in settings sheet, opened from Today header tap) ---------- */
+function openTools(){
+  const s=document.getElementById('sheet');
+  s.innerHTML=`<h3>garden tools</h3><p class="s">Reminders & monthly check-in.</p>
+    <div class="opts">
+      <button class="opt" onclick="exportICS()">📅 Export watering reminders (.ics)<br><span style="color:var(--muted);font-size:12px">Import once into your phone calendar for real notifications</span></button>
+      <button class="opt" onclick="startCheckin()">🔍 Monthly check-in<br><span style="color:var(--muted);font-size:12px">Quick tap-through to catch soggy / light / pests</span></button>
+      <button class="opt" onclick="closeModal()">close</button>
+    </div>`;
+  document.getElementById('modal').classList.add('show');
+}
+function exportICS(){
+  let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//My Garden//EN\r\nCALSCALE:GREGORIAN\r\n';
+  const dt=(d)=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  SEED.forEach(p=>{
+    const st=plantState(p.id); const start=new Date((st.last||now())+p.water*DAY); start.setHours(9,0,0,0);
+    ics+='BEGIN:VEVENT\r\n';
+    ics+=`UID:${p.id}@mygarden\r\n`;
+    ics+=`DTSTART:${dt(start)}\r\n`;
+    ics+=`RRULE:FREQ=DAILY;INTERVAL=${p.water}\r\n`;
+    ics+=`SUMMARY:💧 Water ${p.name} (${p.sp})\r\n`;
+    ics+=`DESCRIPTION:${p.tip.replace(/\n/g,' ')}\r\n`;
+    ics+='BEGIN:VALARM\r\nTRIGGER:PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:Water reminder\r\nEND:VALARM\r\n';
+    ics+='END:VEVENT\r\n';
+  });
+  ics+='END:VCALENDAR';
+  const blob=new Blob([ics],{type:'text/calendar'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='my-garden-reminders.ics'; a.click();
+  URL.revokeObjectURL(url); closeModal(); toast('📅 calendar file downloaded');
+}
+let ciQueue=[], ciIdx=0;
+function startCheckin(){ ciQueue=SEED.slice(); ciIdx=0; nextCheckin(); }
+function nextCheckin(){
+  if(ciIdx>=ciQueue.length){ closeModal(); render(); toast('✅ check-in done'); return; }
+  const p=ciQueue[ciIdx]; const s=document.getElementById('sheet');
+  s.innerHTML=`<h3>${p.name}</h3><p class="s">${p.sp} &nbsp;·&nbsp; ${ciIdx+1}/${ciQueue.length}</p>
+    <div style="text-align:center"><div class="creature" style="width:110px;height:110px;margin:0 auto 8px">${creature(p,plantState(p.id).mood||dueInfo(p).status)}</div></div>
+    <p class="s">How does ${p.name} look?</p>
+    <div class="opts">
+      <button class="opt" onclick="ciSet(null)">👍 Healthy & happy</button>
+      <button class="opt" onclick="ciSet('soggy')">💧 Soil soggy / leaves yellowing</button>
+      <button class="opt" onclick="ciSet('light')">☀️ Leggy / pale — wants more light</button>
+      <button class="opt" onclick="ciSet('unwell')">🩹 Pests / spots / unwell</button>
+    </div>`;
+  document.getElementById('modal').classList.add('show');
+}
+function ciSet(m){ plantState(ciQueue[ciIdx].id).mood=m; save(); ciIdx++; nextCheckin(); }
+
+/* tap the greeting to open tools */
+document.getElementById('greeting').addEventListener('click', openTools);
+
+/* ---------- boot ---------- */
+function greet(){
+  const h=new Date().getHours(); const t=h<12?'good morning':h<18?'good afternoon':'good evening';
+  const due=SEED.filter(p=>dueInfo(p).status==='thirsty').length;
+  document.getElementById('greeting').innerHTML=`${t}, Chelsea · ${new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})} &nbsp;·&nbsp; <u>tools</u>`;
+}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
+
+greet(); render();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>

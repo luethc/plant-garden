@@ -1,0 +1,14 @@
+{
+  "name": "My Garden",
+  "short_name": "My Garden",
+  "description": "A cozy tracker for Chelsea's plants — watering, placement, and health.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF5EA",
+  "theme_color": "#3E5C3A",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
