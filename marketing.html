@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>my garden — The Home Screen Plant Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/js/lucide.min.js"></script>
     <style>
         :root {
             --bg-color: #FDFBF4;
@@ -68,6 +67,48 @@
             font-weight: 500;
         }
 
+        /* Screenshot Gallery */
+        .gallery-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin: 32px 0 16px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .screenshot-item {
+            background: var(--accent-light);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }
+
+        .screenshot-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .screenshot-caption {
+            padding: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-dark);
+            background: #fff;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
         /* Forms & Inputs */
         .form-group {
             margin-bottom: 20px;
@@ -80,7 +121,7 @@
             font-size: 0.95rem;
         }
 
-        input[type="text"], input[type="email"], textarea, select {
+        input[type="text"], input[type="email"], textarea {
             width: 100%;
             padding: 14px;
             border: 1px solid #E4E0D5;
@@ -177,66 +218,75 @@
             font-size: 0.85rem;
             margin-top: 12px;
         }
-
-        /* Toggle between pages for preview */
-        .view-toggle {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .view-toggle button {
-            background: none;
-            border: 1px solid var(--text-muted);
-            padding: 4px 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
     </style>
 </head>
 <body>
 
-    <!-- Demo View Switcher (Remove in production) -->
-    <div class="view-toggle">
-        <button onclick="switchView('signup')">View 1: Signup Screen</button>
-        <button onclick="switchView('billing')">View 2: Invoice & Billing</button>
-    </div>
-
-    <!-- VIEW 1: MARKETING & SIGNUP -->
-    <div id="signup-view" class="container">
+    <!-- PUBLIC VIEW: MARKETING & SIGNUP TAB -->
+    <div id="public-marketing-view" class="container">
         <header>
             <h1>my garden</h1>
             <p class="subtitle">The lightweight plant tracker that lives on your home screen.</p>
             <span class="features-badge">✨ Zero Ads • No App Store Friction • Light Experience</span>
         </header>
 
-        <!-- Replace action URL with your Formspree/Getform endpoint -->
+        <!-- Product Screenshots Section -->
+        <p class="gallery-title">Take a look inside your future garden</p>
+        <div class="screenshot-grid">
+            <div class="screenshot-item">
+                <img src="IMG_8754.jpg" alt="Daily Care Check-in View">
+                <div class="screenshot-caption">Daily Care Check-in</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="IMG_8755.png" alt="All Plants Grid View">
+                <div class="screenshot-caption">Your Complete Plant Grid</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="IMG_8756.png" alt="Pet Safe & Rarity Filters">
+                <div class="screenshot-caption">Pet-Safe & Rarity Filters</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="IMG_8757.png" alt="Room and Cluster Sorting">
+                <div class="screenshot-caption">Room & Cluster Sorting</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="IMG_8758.png" alt="Quick Add Modal">
+                <div class="screenshot-caption">Quick Add Form</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="IMG_8760.jpg" alt="Detailed Care Breakdown">
+                <div class="screenshot-caption">Detailed Plant Logs</div>
+            </div>
+        </div>
+
+        <!-- Signup Tab/Form Section -->
+        <h3 style="margin-bottom: 16px; text-align: center;">Request Early-Bird Access</h3>
         <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST" enctype="multipart/form-data">
-            
             <div class="form-group">
                 <label for="email">Your Email Address</label>
                 <input type="email" id="email" name="email" placeholder="name@example.com" required>
             </div>
 
             <div class="form-group">
-                <label for="plant-names">What plants do you want to track? (Since AI gets it wrong!)</label>
-                <textarea id="plant-names" name="plant-names" rows="3" placeholder="e.g., Monty - Monstera Deliciosa, Stella - Thai Constellation, Grace - Prayer Plant" required></textarea>
+                <label for="plant-names">What plants do you want to track?</label>
+                <textarea id="plant-names" name="plant-names" rows="3" placeholder="e.g., Monty - Monstera Deliciosa, Stella - Thai Constellation" required></textarea>
             </div>
 
             <div class="form-group">
                 <label>Upload Photos of Your Plants (Optional)</label>
                 <div class="file-upload-wrapper" onclick="document.getElementById('photos').click()">
                     <span style="color: var(--accent-terracotta); font-weight: 600;">Click to upload images</span>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Helps us prepare your custom layout</p>
                     <input type="file" id="photos" name="photos" multiple style="display: none;">
                 </div>
             </div>
 
-            <button type="submit" class="btn-primary">Request Access & Custom Layout</button>
+            <button type="submit" class="btn-primary">Submit Verification Request</button>
         </form>
     </div>
 
-    <!-- VIEW 2: BILLING & INVOICE PAGE -->
-    <div id="billing-view" class="container" style="display: none;">
+
+    <!-- HIDDEN VIEW: INVOICE & BILLING (Accessible only via special email link) -->
+    <div id="hidden-billing-view" class="container" style="display: none;">
         <header>
             <h1>my garden</h1>
             <p class="subtitle">Your Custom Collection Layout is Approved & Ready!</p>
@@ -248,8 +298,8 @@
                 <strong>Early-Bird Lifetime Access</strong>
             </div>
             <div class="invoice-row">
-                <span>Configured Plants:</span>
-                <span id="invoice-date">Custom Dashboard Set Up</span>
+                <span>Setup Status:</span>
+                <strong>Custom Dashboard Configured</strong>
             </div>
             <div class="invoice-row invoice-total">
                 <span>Total Due:</span>
@@ -259,30 +309,25 @@
 
         <h3 style="margin-bottom: 16px;">Choose Your Payment Method</h3>
 
-        <!-- Option A: PayPal -->
+        <!-- PayPal Option -->
         <div class="payment-option">
-            <h4 style="color: #003087; display: flex; align-items: center; gap: 8px;">
-                PayPal (Friends & Family)
-            </h4>
-            <p style="font-size: 0.9rem; margin-top: 8px; color: var(--text-dark);">
-                Scan the code below or send <strong>€5.00</strong> to <strong>your-email@example.com</strong>.
+            <h4 style="color: #003087;">PayPal (Friends & Family)</h4>
+            <p style="font-size: 0.9rem; margin-top: 8px;">
+                Scan code or send <strong>€5.00</strong> to <strong>your-email@example.com</strong>.
             </p>
             
-            <!-- Replace this placeholder with an actual QR code snippet from PayPal -->
             <div class="qr-placeholder">
                 [ PayPal QR Code ]
             </div>
 
             <div class="alert-box">
-                ⚠️ <strong>Important:</strong> Please choose the <strong>"Friends and Family"</strong> option when submitting, and include your email address in the transaction notes so I can active your link immediately.
+                ⚠️ <strong>Important:</strong> Please use the <strong>"Friends and Family"</strong> transfer option and put your email address in the notes so your link activates instantly.
             </div>
         </div>
 
-        <!-- Option B: IBAN Wire -->
+        <!-- IBAN Option -->
         <div class="payment-option">
-            <h4 style="display: flex; align-items: center; gap: 8px;">
-                Direct Bank Transfer (IBAN)
-            </h4>
+            <h4>Direct Bank Transfer (IBAN)</h4>
             <div style="font-size: 0.9rem; margin-top: 10px; line-height: 1.6;">
                 <div class="invoice-row"><span>Account Holder:</span> <strong>Your Name</strong></div>
                 <div class="invoice-row"><span>IBAN:</span> <strong>DE89 1234 5678 9012 3456 00</strong></div>
@@ -292,21 +337,22 @@
         </div>
 
         <p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-top: 24px;">
-            Once payment is sent, your custom dashboard link will be dispatched to your email address within a few hours.
+            Once payment is processed, your private home screen app link will land in your inbox automatically.
         </p>
     </div>
 
     <script>
-        // Simple script to toggle views for demonstration purposes
-        function switchView(view) {
-            if(view === 'signup') {
-                document.getElementById('signup-view').style.display = 'block';
-                document.getElementById('billing-view').style.display = 'none';
-            } else {
-                document.getElementById('signup-view').style.display = 'none';
-                document.getElementById('billing-view').style.display = 'block';
+        // Check the URL parameters when the page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const view = urlParams.get('view');
+
+            if (view === 'billing') {
+                // Hide marketing, show invoice
+                document.getElementById('public-marketing-view').style.display = 'none';
+                document.getElementById('hidden-billing-view').style.display = 'block';
             }
-        }
+        });
     </script>
 </body>
 </html>
