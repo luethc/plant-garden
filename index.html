@@ -191,7 +191,7 @@ const LIGHTCAT={ sun:['vera','pip','shortcake','misty','bea'], low:['phil','gold
 const RAINWATER=['pip','grace','drake'];            // want rain / distilled / filtered water
 const SEASONAL=['coraline','pip','vista','bea','misty','shortcake','splash']; // need different care in another season
 // rarity on an absolute houseplant scale (5 = ultra-rare collector plant Chelsea doesn't own); others default to 1
-const RARITY={ stella:4, albus:4, pip:3, splash:3, luna:3, monty:2, delila:2, mojo:2, pia:2, coraline:2, grace:2, tilly:2 };
+const RARITY={ stella:3, albus:4, pip:2, splash:2, luna:3, mojo:2, coraline:2, grace:2, tilly:2 };
 const ROOMS={ vista:['Balcony',''], bea:['Balcony','Window box'], misty:['Balcony','Window box'], shortcake:['Balcony',''], pip:['Balcony',''] };
 BASE.forEach(p=>{
   p.lightcat = ['sun','low','shade'].find(c=>LIGHTCAT[c].includes(p.id)) || 'bright';
@@ -354,7 +354,9 @@ function creature(p, m){
       plant += `<circle cx="${x}" cy="${y}" r="3.2" fill="${p.acc}"/><circle cx="${x}" cy="${y}" r="1" fill="#f6e07a"/>`;
     }
   }
-  return `<svg viewBox="0 0 120 120">${plant}${pot()}${face(m)}</svg>`;
+  const droop = (m==='thirsty'||m==='unwell');
+  const body = droop ? `<g transform="translate(60,84) scale(1.08,0.78) translate(-60,-84) translate(0,4)">${plant}</g>` : plant;
+  return `<svg viewBox="0 0 120 120">${body}${pot()}${face(m)}</svg>`;
 }
 function shade(hex,i){ // slight tonal variation between leaves
   const d=[0,-12,10,-6,6][i%5]; const n=parseInt(hex.slice(1),16);
@@ -421,7 +423,6 @@ function cardRow(p, showWater){
 
 function miniTile(p){ const m=plantState(p.id).mood||dueInfo(p).status;
   return `<div class="tile" onclick="openDetail('${p.id}')">
-      <span class="badge">rarity ${p.rarity}</span>
       <div class="creature">${creature(p,m)}</div>
       <div class="nm">${p.name}</div>
       <div class="st s-${m}">${statusDot(m)}${MOODWORD[m]||'happy'}</div>
