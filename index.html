@@ -129,9 +129,12 @@
 </head>
 <body>
 
-<header class="top">
-  <h1>my garden</h1>
-  <div class="sub" id="greeting"></div>
+<header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
+  <div>
+    <h1>my garden</h1>
+    <div class="sub" id="greeting"></div>
+  </div>
+  <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
 </header>
 
 <main class="wrap" id="view"></main>
@@ -630,9 +633,28 @@ function openTools(){
       <button class="opt" onclick="startCheckin()">🔍 Monthly check-in<br><span style="color:var(--muted);font-size:12px">Quick tap-through to catch soggy / light / pests</span></button>
       <button class="opt" onclick="exportData()">💾 Back up my garden<br><span style="color:var(--muted);font-size:12px">Save your plants, dates, notes &amp; photos to a file</span></button>
       <label class="opt" style="display:block;cursor:pointer">📂 Restore from a backup<br><span style="color:var(--muted);font-size:12px">Load a backup file (e.g. on a new phone)</span><input type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"></label>
+      <button class="opt" onclick="openSyncSetup()">🔗 Connect another device<br><span style="color:var(--muted);font-size:12px">Sync your garden to a new phone or tablet</span></button>
       <button class="opt" onclick="closeModal()">close</button>
     </div>`;
   document.getElementById('modal').classList.add('show');
+}
+function openSyncSetup(){
+  const id=getSyncId();
+  const s=document.getElementById('sheet');
+  s.innerHTML=`<h3>connect another device</h3>
+    <p class="s">On your other device, open the app → garden tools → Connect another device → paste this code.</p>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;font-family:monospace;font-size:13px;word-break:break-all;color:var(--ink);margin-bottom:12px">${id}</div>
+    <button class="btn water full" onclick="navigator.clipboard.writeText('${id}').then(()=>toast('copied!'))">copy code</button>
+    <p class="s" style="margin-top:16px">Or paste a code from another device to connect this one:</p>
+    <div class="field"><input id="sync_in" placeholder="paste sync code here" style="font-size:14px"></div>
+    <button class="btn full" style="background:var(--sage);color:#fff" onclick="linkSyncId()">link this device</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="openTools()">back</button>`;
+}
+function linkSyncId(){
+  const val=document.getElementById('sync_in').value.trim();
+  if(!val||val.length<10){ toast('paste a valid code'); return; }
+  localStorage.setItem(SYNC_ID_KEY,val);
+  syncPull().then(()=>{ closeModal(); toast('✅ linked — garden synced'); });
 }
 function openExportPicker(){
   const s=document.getElementById('sheet');
@@ -778,6 +800,62 @@ document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id===
 })();
 
 if(!meta.firstUse){ meta.firstUse=Date.now(); saveMeta(); }
+
+/* ── Supabase sync ── */
+const SUPA_URL='https://rpetpvpgowvkbwcoivle.supabase.co';
+const SUPA_KEY='sb_publishable_Vgf_sYS4mHlgIOxo-TogcQ_xKIzLe_X';
+const SYNC_ID_KEY='garden_sync_id';
+function getSyncId(){
+  let id=localStorage.getItem(SYNC_ID_KEY);
+  if(!id){ id=crypto.randomUUID(); localStorage.setItem(SYNC_ID_KEY,id); }
+  return id;
+}
+async function supaReq(method,path,body){
+  const h={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'};
+  if(method==='POST') h['Prefer']='resolution=merge-duplicates,return=minimal';
+  const r=await fetch(SUPA_URL+'/rest/v1'+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
+  if(!r.ok) throw new Error(await r.text());
+  return r.status===204?null:r.json().catch(()=>null);
+}
+async function syncPush(){
+  try{
+    await supaReq('POST','/garden_sync',{garden_id:getSyncId(),custom,store,updated_at:new Date().toISOString()});
+    setSyncDot('ok');
+  }catch(e){ setSyncDot('err'); }
+}
+async function syncPull(){
+  try{
+    const rows=await supaReq('GET','/garden_sync?garden_id=eq.'+getSyncId()+'&limit=1');
+    if(!rows||!rows.length) return;
+    const remote=rows[0];
+    const remoteTs=new Date(remote.updated_at).getTime();
+    const localTs=meta.lastSync||0;
+    if(remoteTs>localTs){
+      if(remote.custom){ custom=remote.custom; localStorage.setItem(CKEY,JSON.stringify(custom)); buildSeed(); }
+      if(remote.store){ store=Object.assign({},remote.store); save(); }
+      meta.lastSync=remoteTs; saveMeta(); render();
+    }
+    setSyncDot('ok');
+  }catch(e){ setSyncDot('err'); }
+}
+let _syncTimer=null;
+function schedulePush(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncPush,2500); }
+function setSyncDot(state){
+  const el=document.getElementById('sync-dot');
+  if(!el) return;
+  el.title=state==='ok'?'synced':'sync error';
+  el.style.background=state==='ok'?'#6aaa6a':'#e07050';
+}
+/* patch save/saveCustom to also push */
+const _origSave=save, _origSaveCustom=saveCustom;
+// redefine after both are declared
+(function(){
+  const _s=save, _sc=saveCustom;
+  window.save=function(){ _s(); schedulePush(); };
+  window.saveCustom=function(){ _sc(); schedulePush(); };
+})();
+
+syncPull();
 greet(); render();
 /* auto-update: pull the newest version whenever a fresh one is published */
 if('serviceWorker' in navigator){
