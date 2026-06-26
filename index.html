@@ -84,8 +84,8 @@
   .pills{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
   .pill{font-size:11px;border-radius:20px;padding:3px 9px;background:var(--cream);border:1px solid var(--line);color:var(--muted)}
   .pill.tox{background:#f6e7e2;border-color:#e6c3b8;color:#a4543f}
-  textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;font-family:var(--sans);font-size:13px;resize:vertical;min-height:64px;background:var(--card);color:var(--ink2)}
-  input[type=date]{border:1px solid var(--line);border-radius:10px;padding:7px 9px;font-family:var(--sans);font-size:13px;background:var(--card);color:var(--ink2)}
+  textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;font-family:var(--sans);font-size:16px;resize:vertical;min-height:64px;background:var(--card);color:var(--ink2)}
+  input[type=date]{border:1px solid var(--line);border-radius:10px;padding:7px 9px;font-family:var(--sans);font-size:16px;background:var(--card);color:var(--ink2)}
   .lbl{font-size:12px;font-weight:600;color:var(--ink);margin:14px 0 6px;display:block}
   .journal{display:flex;gap:8px;flex-wrap:wrap}
   .journal img{width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
@@ -108,7 +108,7 @@
   .opt{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px;font-size:14px;text-align:left;cursor:pointer;color:var(--ink2)}
   .opt:active{background:#fff}
   .field{margin-bottom:10px}
-  .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink2)}
+  .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:var(--sans);font-size:16px;background:var(--card);color:var(--ink2)}
   .empty{text-align:center;color:var(--hint);font-size:13px;padding:24px}
   .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:70;opacity:0;transition:opacity .2s;pointer-events:none}
   .toast.show{opacity:1}
@@ -120,7 +120,7 @@
   .sect.open .chev{transform:rotate(90deg)}
   .boxgrp{border:1px dashed var(--line);border-radius:14px;padding:8px 8px 4px;margin:10px 0;background:rgba(255,253,248,.55)}
   .boxhd{font-size:12px;color:var(--muted);font-weight:600;margin:2px 4px 8px;display:flex;align-items:center;gap:6px}
-  .loc input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px;font-family:var(--sans);font-size:13px;background:var(--card);color:var(--ink2)}
+  .loc input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px;font-family:var(--sans);font-size:16px;background:var(--card);color:var(--ink2)}
   .filterbar{display:flex;gap:7px;overflow-x:auto;padding:6px 0 10px;-webkit-overflow-scrolling:touch}
   .fchip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:20px;padding:6px 11px;font-size:12px;font-family:var(--sans);cursor:pointer;white-space:nowrap}
   .fchip.on{background:#e8efe2;border-color:#bcd0ad;color:var(--ink);font-weight:500}
@@ -514,7 +514,7 @@ function openDetail(id){
       <div class="row"><span class="k">Rarity</span><span class="v">${rarity(p.rarity)}</span></div>
       <div class="row"><span class="k">Light</span><span class="v">${p.light}</span></div>
       <div class="row"><span class="k">Water every</span><span class="v">~${p.water} days</span></div>
-      <div class="row"><span class="k">Last watered</span><span class="v"><input type="date" value="${dateVal}" onchange="setLast('${p.id}',this.value)"> </span></div>
+      <div class="row"><span class="k">Last watered</span><span class="v"><input type="date" value="${dateVal}" onclick="try{this.showPicker()}catch(e){}" onchange="setLast('${p.id}',this.value)"> </span></div>
       <div class="row"><span class="k">Next due</span><span class="v">${st.last?dueWord(d):'—'}</span></div>
     </div>
     <div style="font-size:13px;color:var(--ink2);line-height:1.6;background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:12px">💡 ${p.tip}</div>
