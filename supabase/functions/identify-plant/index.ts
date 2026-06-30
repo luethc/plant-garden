@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
             type: 'object',
             properties: {
               is_plant: { type: 'boolean', description: 'true only if the image clearly shows a houseplant' },
-              cuteName: { type: 'string', description: 'a cute, punny first name fitting the plant (e.g. Fernando for a fern, Monty for a monstera, Pearl for a string-of-pearls)' },
+              cuteName: { type: 'string', description: 'a cute human-style first name that is clearly a pun on, or riff of, the species/genus name (e.g. Fernando for a fern, Calliope for a Calathea, Riley for a Pilea, Otis for a pothos)' },
               species: { type: 'string', description: 'common species name, e.g. "Boston fern"' },
               shape: { type: 'string', enum: SHAPES, description: 'closest matching silhouette from the list' },
               col: { type: 'string', description: 'dominant leaf color as #rrggbb hex' },
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
               : species
                 ? `Create a cute app profile for a "${species}" houseplant via the tool. Use typical, accurate care values for this species. Keep species="${species}". Set is_plant=true.`
                 : 'Identify this houseplant and fill in a cute app profile via the tool. Choose the closest shape from the allowed list. If you are not confident of the exact cultivar, give the common species or genus name rather than guessing a specific rare variety. If the image is not clearly a houseplant, set is_plant=false.')
-              + ` For cuteName, invent a fresh, original, distinctive name — be playful and surprising. Avoid over-used houseplant clichés (Monty, Monstery, Fernando, Fern, Pearl, Spike, Vera, Ivy, Sunny, Leafy, Planty, Rosie).${taken.length ? ` The user already has plants named: ${taken.join(', ')}. Do NOT reuse any of those — pick something clearly different.` : ''} (variety token: ${crypto.randomUUID().slice(0, 8)})` },
+              + ` For cuteName: it MUST be a cute human first name that clearly puns on or riffs off this plant's species or genus, so the connection is obvious (e.g. Calliope or Cally for a Calathea, Riley for a Pilea, Otis for a pothos, Sandy for a sansevieria, Hoyt for a Hoya, Phil for a philodendron). There are usually several possible riffs — pick a less-obvious one rather than the single most common nickname, and vary your choice.${taken.length ? ` The user already has plants named: ${taken.join(', ')}. Do NOT reuse any of those — choose a different riff.` : ''} (variety token: ${crypto.randomUUID().slice(0, 8)})` },
           ],
         }],
       }),
