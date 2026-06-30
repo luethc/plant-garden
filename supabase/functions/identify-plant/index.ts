@@ -28,13 +28,17 @@ Deno.serve(async (req) => {
     if (uErr || !user) return json({ error: 'invalid session' }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const image: string = body.image;
-    if (!image || typeof image !== 'string') return json({ error: 'no image' }, 400);
-    if (image.length > 1_900_000) return json({ error: 'image too large' }, 413); // ~1.4MB binary
+    const image: string = typeof body.image === 'string' ? body.image : '';
+    const species: string = typeof body.species === 'string' ? body.species.trim().slice(0, 80) : '';
+    const hasImage = image.length > 0;
+    if (!hasImage && !species) return json({ error: 'need a photo or a plant name' }, 400);
+    if (hasImage && image.length > 1_900_000) return json({ error: 'image too large' }, 413); // ~1.4MB binary
 
     let mediaType = 'image/jpeg', b64 = image;
-    const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.*)$/);
-    if (m) { mediaType = m[1]; b64 = m[2]; }
+    if (hasImage) {
+      const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.*)$/);
+      if (m) { mediaType = m[1]; b64 = m[2]; }
+    }
 
     // ---- quota: unlimited for allow-listed emails, else atomic 1/day ----
     const unlimited = (Deno.env.get('UNLIMITED_EMAILS') || '')
@@ -84,8 +88,13 @@ Deno.serve(async (req) => {
         messages: [{
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-            { type: 'text', text: 'Identify this houseplant and fill in a cute app profile via the tool. Choose the closest shape from the allowed list. If the image is not clearly a houseplant, set is_plant=false.' },
+            ...(hasImage ? [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } }] : []),
+            { type: 'text', text:
+              species && hasImage
+                ? `The user has told you this plant is a "${species}" — trust that identification, do not second-guess it. Use the photo only to capture its real appearance: actual leaf color, any variegation/accent color, and size. Fill in the cute app profile via the tool, keeping species="${species}". Set is_plant=true.`
+              : species
+                ? `Create a cute app profile for a "${species}" houseplant via the tool. Use typical, accurate care values for this species. Keep species="${species}". Set is_plant=true.`
+                : 'Identify this houseplant and fill in a cute app profile via the tool. Choose the closest shape from the allowed list. If you are not confident of the exact cultivar, give the common species or genus name rather than guessing a specific rare variety. If the image is not clearly a houseplant, set is_plant=false.' },
           ],
         }],
       }),
@@ -101,14 +110,14 @@ Deno.serve(async (req) => {
     if (!block) { await refund(); return json({ error: 'no result' }, 502); }
     const p = block.input || {};
 
-    if (!p.is_plant) {
-      await refund(); // don't burn quota on a non-plant photo
+    if (!p.is_plant && !species) {
+      await refund(); // don't burn quota on a non-plant photo (skip when the user named the species)
       return json({ plant: false, message: "Hmm, I couldn't spot a plant in that photo. Try another angle?" });
     }
 
     const profile = {
       name: String(p.cuteName || '').slice(0, 40) || 'New plant',
-      sp: String(p.species || '').slice(0, 80) || 'unknown',
+      sp: (species || String(p.species || '')).slice(0, 80) || 'unknown',
       shape: SHAPES.includes(p.shape) ? p.shape : 'broad',
       col: hexOk(p.col) ? p.col : '#5c9150',
       acc: hexOk(p.acc) ? p.acc : null,

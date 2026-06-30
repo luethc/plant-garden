@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v6</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v7</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -602,13 +602,14 @@ function rmPhoto(id,i){ const st=plantState(id); st.journal.splice(i,1); save();
 function openAdd(){
   _pendingProfile=null;
   const s=document.getElementById('sheet');
-  s.innerHTML=`<h3>add a plant</h3><p class="s">Snap a photo and let me identify it — or fill it in yourself.</p>
-    <label class="btn water full" style="display:block;text-align:center;cursor:pointer">📷 Identify from a photo
+  s.innerHTML=`<h3>add a plant</h3><p class="s">Tell me what it is, snap a photo, or both — I'll fill in the care profile. Knowing the name gives the best result.</p>
+    <div class="field"><input id="ap_sp" placeholder="What kind is it? (e.g. Monstera Thai Constellation)"></div>
+    <button class="btn water full" style="margin-bottom:8px" onclick="autofillFromName()">✨ Fill in the details for me</button>
+    <label class="btn ghost full" style="display:block;text-align:center;cursor:pointer">📷 …or scan from a photo
       <input type="file" accept="image/*" capture="environment" style="display:none" onchange="identifyPhoto(this)"></label>
     <div id="ap_status" style="font-size:13px;margin:10px 0 2px;min-height:18px;color:var(--ink2)"></div>
-    <p class="s" style="text-align:center;margin:6px 0 12px;color:var(--hint)">— or enter it manually —</p>
+    <p class="s" style="text-align:center;margin:6px 0 12px;color:var(--hint)">— details (edit anything) —</p>
     <div class="field"><input id="ap_name" placeholder="Name (e.g. Fernando)"></div>
-    <div class="field"><input id="ap_sp" placeholder="What is it? (e.g. Boston fern)"></div>
     <div class="field"><select id="ap_shape">
       <option value="broad">leafy / broad</option><option value="monstera">monstera-ish</option>
       <option value="heart">heart / trailing</option><option value="spiky">spiky / succulent</option>
@@ -634,30 +635,47 @@ function downscaleImage(file, maxDim, quality){
     img.src=url;
   });
 }
+async function callIdentify(payload, status){
+  const { data:{ session } }=await sb.auth.getSession();
+  if(!session){ status.textContent='please sign in first'; return null; }
+  const r=await fetch(SUPA_URL+'/functions/v1/identify-plant',{
+    method:'POST',
+    headers:{ 'Authorization':'Bearer '+session.access_token, 'apikey':SUPA_KEY, 'content-type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const j=await r.json().catch(()=>({error:'bad response'}));
+  if(r.status===429){ status.textContent='🌙 '+(j.message||'Daily limit reached.'); return null; }
+  if(j && j.plant===false){ status.textContent=j.message||'No plant found in that photo.'; return null; }
+  if(!r.ok || !j || j.error || !j.profile){ status.textContent='Sorry, that didn’t work — try again, or enter the details by hand below.'; return null; }
+  return j.profile;
+}
+function applyProfile(p, status){
+  _pendingProfile=p;
+  if(!val('ap_sp')) document.getElementById('ap_sp').value=p.sp;
+  document.getElementById('ap_name').value=p.name;
+  document.getElementById('ap_shape').value=p.shape;
+  document.getElementById('ap_water').value=p.water;
+  status.innerHTML=`✨ It's <b>${esc(p.name)}</b> — ${esc(p.sp)}<br><span style="color:var(--muted)">Light: ${esc(p.light)} · ${p.toxic?'⚠ toxic to pets':'pet-safe'} · review below, tweak anything, then add.</span>`;
+}
+async function autofillFromName(){
+  const status=document.getElementById('ap_status');
+  const sp=val('ap_sp');
+  if(!sp){ status.textContent='Type what kind of plant it is first, then tap ✨.'; return; }
+  status.textContent='✨ filling in the details…';
+  try{ const p=await callIdentify({ species:sp }, status); if(p) applyProfile(p, status); }
+  catch(e){ status.textContent='Something went wrong — enter the details by hand below.'; }
+}
 async function identifyPhoto(inp){
   const f=inp.files[0]; if(!f) return;
   const status=document.getElementById('ap_status');
-  status.textContent='📸 looking at your plant…';
+  const sp=val('ap_sp');
+  status.textContent=sp?'📸 looking at your '+esc(sp)+'…':'📸 looking at your plant…';
   try{
     const dataUrl=await downscaleImage(f, 1024, 0.8);
-    const { data:{ session } }=await sb.auth.getSession();
-    if(!session){ status.textContent='please sign in first'; return; }
-    const r=await fetch(SUPA_URL+'/functions/v1/identify-plant',{
-      method:'POST',
-      headers:{ 'Authorization':'Bearer '+session.access_token, 'apikey':SUPA_KEY, 'content-type':'application/json' },
-      body: JSON.stringify({ image:dataUrl })
-    });
-    const j=await r.json().catch(()=>({error:'bad response'}));
-    if(r.status===429){ status.textContent='🌙 '+(j.message||'Daily limit reached.'); return; }
-    if(j && j.plant===false){ status.textContent=j.message||'No plant found in that photo.'; return; }
-    if(!r.ok || !j || j.error || !j.profile){ status.textContent='Sorry, that didn’t work — try again, or enter it manually below.'; return; }
-    const p=j.profile; _pendingProfile=p;
-    document.getElementById('ap_name').value=p.name;
-    document.getElementById('ap_sp').value=p.sp;
-    document.getElementById('ap_shape').value=p.shape;
-    document.getElementById('ap_water').value=p.water;
-    status.innerHTML=`✨ It's <b>${esc(p.name)}</b> — ${esc(p.sp)}<br><span style="color:var(--muted)">Light: ${esc(p.light)} · ${p.toxic?'⚠ toxic to pets':'pet-safe'} · review below, tweak anything, then add.</span>`;
-  }catch(e){ status.textContent='Something went wrong — enter it manually below.'; }
+    const payload={ image:dataUrl }; if(sp) payload.species=sp;
+    const p=await callIdentify(payload, status);
+    if(p) applyProfile(p, status);
+  }catch(e){ status.textContent='Something went wrong — enter the details by hand below.'; }
   finally{ inp.value=''; }
 }
 function doAdd(){
