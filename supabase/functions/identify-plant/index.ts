@@ -35,9 +35,13 @@ Deno.serve(async (req) => {
     if (hasImage && image.length > 1_900_000) return json({ error: 'image too large' }, 413); // ~1.4MB binary
 
     let mediaType = 'image/jpeg', b64 = image;
-    if (hasImage) {
-      const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.*)$/);
-      if (m) { mediaType = m[1]; b64 = m[2]; }
+    if (hasImage && image.startsWith('data:')) {
+      const semi = image.indexOf(';');
+      const comma = image.indexOf(',');
+      if (semi > 5 && comma > semi) {
+        mediaType = image.slice(5, semi);
+        b64 = image.slice(comma + 1);
+      }
     }
 
     // ---- quota: unlimited for allow-listed emails, else atomic 1/day ----
