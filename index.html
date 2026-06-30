@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v10</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v11</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -373,9 +373,40 @@ const L={
   blade:'M-3,0 C -4,-16 -2,-34 0,-42 C 2,-34 4,-16 3,0 Z',
   round:'M0,-10 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0',
 };
+/* ---------- dracaena / dragon tree (cane + spiky tuft, varies by size) ---------- */
+function isDrac(p){ return p.id==='drake' || (p.sp||'').toLowerCase().includes('dracaena'); }
+function dracStem(cx, baseY, topY, w, woody, hatch){
+  let s=`<path d="M${cx-w},${baseY} C${cx-w*0.7},${(baseY+topY)/2} ${cx-w*0.5},${topY+3} ${cx},${topY} C${cx+w*0.5},${topY+3} ${cx+w*0.7},${(baseY+topY)/2} ${cx+w},${baseY} Z" fill="${woody}"/>`;
+  for(let y=baseY-3; y>topY+4; y-=4){ // crisscross leaf-scar bark pattern
+    s+=`<path d="M${cx-w*0.7},${y} L${cx+w*0.7},${y-4}" stroke="${hatch}" stroke-width="0.7"/>`;
+    s+=`<path d="M${cx+w*0.7},${y} L${cx-w*0.7},${y-4}" stroke="${hatch}" stroke-width="0.7"/>`;
+  }
+  return s;
+}
+function dracTuft(cx, topY, col, edge, sc){
+  let s=''; const cnt=9;
+  for(let i=0;i<cnt;i++){ const a=-74+i*(148/(cnt-1)), ln=sc*(0.85+(i%2?0.2:0));
+    s+=`<g transform="translate(${cx},${topY}) rotate(${a}) scale(${ln})"><path d="${L.blade}" fill="${shade(col,i%3)}" stroke="${edge}" stroke-width="0.7"/></g>`;
+  }
+  return s;
+}
+function dracaenaPlant(p){
+  const woody='#9c7f5a', hatch='#bda079', col=p.col||'#4a7a40';
+  const edge=(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc))?p.acc:'#9a4a3a';
+  let canes;
+  if(p.size==='XS') canes=[[60,80,0]];                       // rosette, no cane
+  else if(p.size==='S') canes=[[60,60,1]];                   // one short cane
+  else if(p.size==='M') canes=[[53,62,1],[68,48,1]];         // two, different heights
+  else canes=[[48,64,1],[61,42,1],[73,54,1]];                // three, all different
+  canes.sort((a,b)=>a[1]-b[1]);                              // tallest (smallest y) drawn first / behind
+  let s='';
+  canes.forEach(c=>{ if(c[2]) s+=dracStem(c[0],86,c[1],2.6,woody,hatch); s+=dracTuft(c[0],c[1],col,edge, p.size==='XS'?1:0.82); });
+  return s;
+}
 function creature(p, m){
   let plant='';
   const n = p.size==='L'?5 : p.size==='XS'?3 : p.size==='S'?3 : 4;
+  if(isDrac(p)){ plant = dracaenaPlant(p); } else
   if(p.shape==='monstera'){
     const ang=[-42,-20,0,20,42], sc=[.72,.86,1,.86,.72], cx=[40,51,60,69,80];
     const leafY=64;
