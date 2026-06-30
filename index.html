@@ -597,26 +597,74 @@ function rmPhoto(id,i){ const st=plantState(id); st.journal.splice(i,1); save();
 
 /* ---------- add plant ---------- */
 function openAdd(){
+  _pendingProfile=null;
   const s=document.getElementById('sheet');
-  s.innerHTML=`<h3>add a plant</h3><p class="s">For one we didn't photograph.</p>
+  s.innerHTML=`<h3>add a plant</h3><p class="s">Snap a photo and let me identify it — or fill it in yourself.</p>
+    <label class="btn water full" style="display:block;text-align:center;cursor:pointer">📷 Identify from a photo
+      <input type="file" accept="image/*" capture="environment" style="display:none" onchange="identifyPhoto(this)"></label>
+    <div id="ap_status" style="font-size:13px;margin:10px 0 2px;min-height:18px;color:var(--ink2)"></div>
+    <p class="s" style="text-align:center;margin:6px 0 12px;color:var(--hint)">— or enter it manually —</p>
     <div class="field"><input id="ap_name" placeholder="Name (e.g. Fernando)"></div>
     <div class="field"><input id="ap_sp" placeholder="What is it? (e.g. Boston fern)"></div>
     <div class="field"><select id="ap_shape">
       <option value="broad">leafy / broad</option><option value="monstera">monstera-ish</option>
       <option value="heart">heart / trailing</option><option value="spiky">spiky / succulent</option>
       <option value="strappy">grassy / strappy</option><option value="round">round leaves</option>
-      <option value="tree">tree / trunk</option><option value="flower">flowering</option>
+      <option value="tree">tree / trunk</option><option value="pitcher">pitcher / carnivore</option><option value="flower">flowering</option>
     </select></div>
     <div class="field"><input id="ap_water" type="number" value="7" min="1" placeholder="Water every N days"></div>
     <button class="btn water full" onclick="doAdd()">add to my garden</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeModal()">cancel</button>`;
   document.getElementById('modal').classList.add('show');
 }
+let _pendingProfile=null;
+function downscaleImage(file, maxDim, quality){
+  return new Promise((res,rej)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{ let w=img.width, h=img.height;
+      if(w>h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
+      else if(h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', quality)); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.src=url;
+  });
+}
+async function identifyPhoto(inp){
+  const f=inp.files[0]; if(!f) return;
+  const status=document.getElementById('ap_status');
+  status.textContent='📸 looking at your plant…';
+  try{
+    const dataUrl=await downscaleImage(f, 1024, 0.8);
+    const { data:{ session } }=await sb.auth.getSession();
+    if(!session){ status.textContent='please sign in first'; return; }
+    const r=await fetch(SUPA_URL+'/functions/v1/identify-plant',{
+      method:'POST',
+      headers:{ 'Authorization':'Bearer '+session.access_token, 'apikey':SUPA_KEY, 'content-type':'application/json' },
+      body: JSON.stringify({ image:dataUrl })
+    });
+    const j=await r.json().catch(()=>({error:'bad response'}));
+    if(r.status===429){ status.textContent='🌙 '+(j.message||'Daily limit reached.'); return; }
+    if(j && j.plant===false){ status.textContent=j.message||'No plant found in that photo.'; return; }
+    if(!r.ok || !j || j.error || !j.profile){ status.textContent='Sorry, that didn’t work — try again, or enter it manually below.'; return; }
+    const p=j.profile; _pendingProfile=p;
+    document.getElementById('ap_name').value=p.name;
+    document.getElementById('ap_sp').value=p.sp;
+    document.getElementById('ap_shape').value=p.shape;
+    document.getElementById('ap_water').value=p.water;
+    status.innerHTML=`✨ It's <b>${esc(p.name)}</b> — ${esc(p.sp)}<br><span style="color:var(--muted)">Light: ${esc(p.light)} · ${p.toxic?'⚠ toxic to pets':'pet-safe'} · review below, tweak anything, then add.</span>`;
+  }catch(e){ status.textContent='Something went wrong — enter it manually below.'; }
+  finally{ inp.value=''; }
+}
 function doAdd(){
   const name=val('ap_name')||'New plant';
-  const p={ id:'u'+Date.now(), name, sp:val('ap_sp')||'unknown', shape:val('ap_shape'), col:'#5c9150', acc:null,
-    size:'M', rarity:1, light:'Bright indirect', group:'bright', water:parseInt(val('ap_water'))||7, toxic:false, tip:'Added by you — edit care notes anytime.' };
-  custom.added.push(p); saveCustom(); closeModal(); go('garden'); toast(`🌱 ${name} added`);
+  const pp=_pendingProfile||{};
+  const p={ id:'u'+Date.now(), name, sp:val('ap_sp')||'unknown', shape:val('ap_shape'),
+    col: pp.col||'#5c9150', acc: pp.acc||null, size: pp.size||'M', rarity: pp.rarity||1,
+    light: pp.light||'Bright indirect', group:'bright', water:parseInt(val('ap_water'))||7,
+    toxic: !!pp.toxic, tip: pp.tip||'Added by you — edit care notes anytime.', source:'user' };
+  custom.added.push(p); saveCustom(); _pendingProfile=null; closeModal(); go('garden'); toast(`🌱 ${name} added`);
 }
 function val(id){ return document.getElementById(id).value.trim(); }
 function closeModal(){ document.getElementById('modal').classList.remove('show'); }
