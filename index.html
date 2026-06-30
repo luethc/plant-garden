@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v11</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v12</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -308,8 +308,8 @@ function leaf(path, cx, rot, scale, fill, accFill, accPath, cy=82, midrib){
   if(midrib) s+=`<path d="M-1.7,-9 Q-0.6,-29 0,-49 Q0.6,-29 1.7,-9 Z" fill="${midrib}"/>`;
   s+=`</g>`; return s;
 }
-function lighten(hex,amt){ const n=parseInt(hex.slice(1),16);
-  let r=Math.min(255,(n>>16)+amt), g=Math.min(255,((n>>8)&255)+amt), b=Math.min(255,(n&255)+amt);
+function lighten(hex,amt){ const n=parseInt(hex.slice(1),16), c=v=>Math.max(0,Math.min(255,v));
+  let r=c((n>>16)+amt), g=c(((n>>8)&255)+amt), b=c((n&255)+amt);
   return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
 let _lid=0;
 // the fenestration slits on their own, so we can re-outline them on a white sector
@@ -369,10 +369,21 @@ function albVeg(cx,rot,sc,cy,white,green,idx){
 const L={
   monstera:'M0,-5 C6,1 20,3 30,-1 C34,-5 33,-12 30,-16 C28,-30 22,-50 13,-55 C11.5,-55.8 10.5,-55.6 10,-55.8 C8,-56.4 4,-58 0,-60 C-4,-58 -8,-56.4 -10,-55.8 C-10.5,-55.6 -11.5,-55.8 -13,-55 C-22,-50 -28,-30 -30,-16 C-33,-12 -34,-5 -30,-1 C-20,3 -6,1 0,-5 Z M5,-16.4 Q14,-17.5 22,-23.5 Q12,-14.5 5,-13.6 Q2.5,-15 5,-16.4 Z M5,-26.9 Q14,-28 21,-34 Q12,-25 5,-24.1 Q2.5,-25.5 5,-26.9 Z M5,-36.9 Q13,-38 18,-44.5 Q11,-34.8 5,-34.1 Q2.5,-35.5 5,-36.9 Z M-5,-16.4 Q-14,-17.5 -22,-23.5 Q-12,-14.5 -5,-13.6 Q-2.5,-15 -5,-16.4 Z M-5,-26.9 Q-14,-28 -21,-34 Q-12,-25 -5,-24.1 Q-2.5,-25.5 -5,-26.9 Z M-5,-36.9 Q-13,-38 -18,-44.5 Q-11,-34.8 -5,-34.1 Q-2.5,-35.5 -5,-36.9 Z',
   heart:'M0,-2 C 9,-6 14,-16 9,-24 C 5,-28 1,-26 0,-23 C -1,-26 -5,-28 -9,-24 C -14,-16 -9,-6 0,-2 Z',
+  caladium:'M0,-3 C3,-1 7,0 10,-3 C13,-7 12,-13 10,-16 C9,-25 6,-33 0,-40 C-6,-33 -9,-25 -10,-16 C-12,-13 -13,-7 -10,-3 C-7,0 -3,-1 0,-3 Z',
   oval:'M0,0 C -10,-6 -11,-26 0,-34 C 11,-26 10,-6 0,0 Z',
   blade:'M-3,0 C -4,-16 -2,-34 0,-42 C 2,-34 4,-16 3,0 Z',
   round:'M0,-10 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0',
 };
+/* ---------- caladium: small, long heart-shaped leaves on petioles, pink midrib ---------- */
+function isCaladium(p){ return p.id==='coraline' || (p.sp||'').toLowerCase().includes('caladium'); }
+function caladiumLeaf(cx,rot,dark,light,pink,cy){
+  const inset=s=>`transform="translate(0,-20) scale(${s}) translate(0,20)"`;
+  return `<g transform="translate(${cx},${cy}) rotate(${rot})">`
+    +`<path d="${L.caladium}" fill="${dark}"/>`
+    +`<path d="${L.caladium}" ${inset(0.74)} fill="${light}"/>`
+    +`<path d="${L.caladium}" ${inset(0.45)} fill="${pink}"/>`
+    +`</g>`;
+}
 /* ---------- dracaena / dragon tree (cane + spiky tuft, varies by size) ---------- */
 function isDrac(p){ return p.id==='drake' || (p.sp||'').toLowerCase().includes('dracaena'); }
 function dracStem(cx, baseY, topY, w, woody, hatch){
@@ -406,8 +417,17 @@ function dracaenaPlant(p){
 function creature(p, m){
   let plant='';
   const n = p.size==='L'?5 : p.size==='XS'?3 : p.size==='S'?3 : 4;
-  if(isDrac(p)){ plant = dracaenaPlant(p); } else
-  if(p.shape==='monstera'){
+  if(isDrac(p)){ plant = dracaenaPlant(p); }
+  else if(isCaladium(p)){
+    const cnt = p.size==='L'?5 : (p.size==='S'||p.size==='XS')?3 : 4;
+    const cx=[46,53,60,67,74], ang=[-40,-20,0,20,40], startIdx=Math.floor((5-cnt)/2), baseLeaf=58;
+    const pink=(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc))?p.acc:'#d87a9b';
+    for(let i=0;i<cnt;i++){ const idx=startIdx+i;
+      plant+=`<path d="M60,84 Q${cx[idx]},74 ${cx[idx]},${baseLeaf}" stroke="${shade(p.col,0)}" stroke-width="2" fill="none" stroke-linecap="round"/>`; }
+    for(let i=0;i<cnt;i++){ const idx=startIdx+i; const base=shade(p.col,i);
+      plant+=caladiumLeaf(cx[idx],ang[idx],lighten(base,-16),lighten(base,30),pink,baseLeaf); }
+  }
+  else if(p.shape==='monstera'){
     const ang=[-42,-20,0,20,42], sc=[.72,.86,1,.86,.72], cx=[40,51,60,69,80];
     const leafY=64;
     // draw stems first (behind leaves)
