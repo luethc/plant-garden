@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v12</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v13</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -370,6 +370,7 @@ const L={
   monstera:'M0,-5 C6,1 20,3 30,-1 C34,-5 33,-12 30,-16 C28,-30 22,-50 13,-55 C11.5,-55.8 10.5,-55.6 10,-55.8 C8,-56.4 4,-58 0,-60 C-4,-58 -8,-56.4 -10,-55.8 C-10.5,-55.6 -11.5,-55.8 -13,-55 C-22,-50 -28,-30 -30,-16 C-33,-12 -34,-5 -30,-1 C-20,3 -6,1 0,-5 Z M5,-16.4 Q14,-17.5 22,-23.5 Q12,-14.5 5,-13.6 Q2.5,-15 5,-16.4 Z M5,-26.9 Q14,-28 21,-34 Q12,-25 5,-24.1 Q2.5,-25.5 5,-26.9 Z M5,-36.9 Q13,-38 18,-44.5 Q11,-34.8 5,-34.1 Q2.5,-35.5 5,-36.9 Z M-5,-16.4 Q-14,-17.5 -22,-23.5 Q-12,-14.5 -5,-13.6 Q-2.5,-15 -5,-16.4 Z M-5,-26.9 Q-14,-28 -21,-34 Q-12,-25 -5,-24.1 Q-2.5,-25.5 -5,-26.9 Z M-5,-36.9 Q-13,-38 -18,-44.5 Q-11,-34.8 -5,-34.1 Q-2.5,-35.5 -5,-36.9 Z',
   heart:'M0,-2 C 9,-6 14,-16 9,-24 C 5,-28 1,-26 0,-23 C -1,-26 -5,-28 -9,-24 C -14,-16 -9,-6 0,-2 Z',
   caladium:'M0,-3 C3,-1 7,0 10,-3 C13,-7 12,-13 10,-16 C9,-25 6,-33 0,-40 C-6,-33 -9,-25 -10,-16 C-12,-13 -13,-7 -10,-3 C-7,0 -3,-1 0,-3 Z',
+  splash:'M0,-4 C4,-1 10,1 14,-3 C18,-7 16,-14 13,-17 C11,-23 7,-28 0,-31 C-7,-28 -11,-23 -13,-17 C-16,-14 -18,-7 -14,-3 C-10,1 -4,-1 0,-4 Z',
   oval:'M0,0 C -10,-6 -11,-26 0,-34 C 11,-26 10,-6 0,0 Z',
   blade:'M-3,0 C -4,-16 -2,-34 0,-42 C 2,-34 4,-16 3,0 Z',
   round:'M0,-10 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0',
@@ -383,6 +384,103 @@ function caladiumLeaf(cx,rot,dark,light,pink,cy){
     +`<path d="${L.caladium}" ${inset(0.74)} fill="${light}"/>`
     +`<path d="${L.caladium}" ${inset(0.45)} fill="${pink}"/>`
     +`</g>`;
+}
+/* ---------- splash (Alocasia 'Splash'): short heart leaves on curved stems, Thai-style speckles ---------- */
+// generic variegated leaf (irregular speckles; some leaves light green w/ dark speckles). pathKey picks the leaf outline.
+function speckleLeaf(pathKey,cx,cy,rot,sc,idx,base,white){
+  const id='spk'+(_lid++);
+  const light=(idx%3===2);
+  const fill=light?lighten(base,62):shade(base,idx%3);
+  const spk=light?lighten(base,-32):white;
+  const dots=[[-6,-8],[5,-12],[-3,-18],[8,-20],[-8,-22],[3,-26],[6,-14],[-5,-14],[2,-10],[-2,-24],[9,-24],[-9,-12],[0,-20],[4,-22],[-4,-28],[7,-9],[-7,-26],[1,-15]];
+  let s='';
+  dots.forEach((q,k)=>{ const t=(k*7+idx*3)%10, b=t<5?0.7:t<8?1.1:1.7;       // irregular ovals, smallest most frequent
+    const rx=(b*(0.7+((k*3)%5)*0.16)).toFixed(2), ry=(b*(0.7+((k*5+idx)%5)*0.16)).toFixed(2), rt=((k*37+idx*53)%180)-90;
+    s+=`<ellipse cx="${q[0]}" cy="${q[1]}" rx="${rx}" ry="${ry}" transform="rotate(${rt} ${q[0]} ${q[1]})" fill="${spk}"/>`; });
+  return `<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${sc})">`
+    +`<clipPath id="${id}"><path d="${L[pathKey]}"/></clipPath>`
+    +`<path d="${L[pathKey]}" fill="${fill}"/>`
+    +`<g clip-path="url(#${id})">${s}</g>`
+    +`</g>`;
+}
+/* ---------- alocasia: short heart leaves on curved stems (base shape); speckle pattern only on variegated ones ---------- */
+function isAlocasia(p){ return p.id==='splash' || (p.sp||'').toLowerCase().includes('alocasia'); }
+function alocasiaVarieg(p){ const s=(p.sp||'').toLowerCase();
+  if(/splash|variegat|silver|dragon/.test(s)) return true;
+  if(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc)){ const n=parseInt(p.acc.slice(1),16),mx=Math.max(n>>16,(n>>8)&255,n&255),mn=Math.min(n>>16,(n>>8)&255,n&255); if(mx>210&&(mx-mn)<40) return true; }
+  return false;
+}
+function alocasiaPlant(p){
+  const base=p.col||'#5a8a55';
+  const white=(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc))?lighten(p.acc,6):'#eef0e2';
+  const varieg=alocasiaVarieg(p);
+  const cnt = p.size==='L'?6 : p.size==='M'?5 : p.size==='S'?4 : 3;
+  let lines='', leaves='';
+  for(let i=0;i<cnt;i++){
+    const frac = cnt>1? i/(cnt-1):0.5, ang=-52+frac*104;
+    const lbx=60+Math.sin(ang*Math.PI/180)*23, lby=67-Math.cos(ang*Math.PI/180)*6;
+    lines+=`<path d="M60,86 Q${(60+lbx)/2},${lby+7} ${lbx},${lby}" stroke="${shade(base,1)}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+    leaves+= varieg
+      ? speckleLeaf('splash',lbx,lby,ang,0.92,i,base,white)
+      : `<g transform="translate(${lbx},${lby}) rotate(${ang}) scale(0.92)"><path d="${L.splash}" fill="${shade(base,i%3)}"/></g>`;
+  }
+  return lines+leaves;
+}
+/* ---------- ficus (base shape): oval leaves up a stem, angled upward; speckle pattern only on variegated types ---------- */
+function isFicus(p){ const s=(p.sp||'').toLowerCase(); return p.id==='luna' || s.includes('ficus'); }
+function ficusVarieg(p){ const s=(p.sp||'').toLowerCase();
+  if(/moonshine|shivereana|variegat|tineke|ruby/.test(s)) return true;
+  if(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc)){ const n=parseInt(p.acc.slice(1),16),mx=Math.max(n>>16,(n>>8)&255,n&255),mn=Math.min(n>>16,(n>>8)&255,n&255); if(mx>205&&(mx-mn)<45) return true; }
+  return false;
+}
+function ficusPlant(p){
+  const base=p.col||'#7e9a78';
+  const white=(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc))?lighten(p.acc,8):'#dfe7d8';
+  const varieg=ficusVarieg(p);
+  const cnt=7, top=34;                      // fixed leaf count; layout authored at scale 1 (= size M)
+  let lines=`<path d="M60,86 L60,${top}" stroke="${shade(base,1)}" stroke-width="2.6" stroke-linecap="round" fill="none"/>`, leaves='';
+  for(let j=0;j<cnt;j++){ const sign=j%2?1:-1;
+    const ay=top + j*((86-top)/(cnt+0.3)), ang=sign*(13+j*3.5), sc=0.55+j*0.05;
+    leaves+= varieg
+      ? speckleLeaf('oval',60,ay,ang,sc,j,base,white)
+      : `<g transform="translate(60,${ay}) rotate(${ang}) scale(${sc})"><path d="${L.oval}" fill="${shade(base,j%3)}"/></g>`;
+  }
+  const sf = p.size==='L'?1.18 : p.size==='M'?1.0 : p.size==='S'?0.82 : 0.64;
+  return `<g transform="translate(60,86) scale(${sf}) translate(-60,-86)">${lines+leaves}</g>`;
+}
+/* ---------- dumb cane / dieffenbachia: leaves up a cane, white midrib + speckles ---------- */
+function isDumbcane(p){ const s=(p.sp||'').toLowerCase(); return p.id==='effie' || s.includes('dieffenbachia') || s.includes('dumb cane'); }
+function dumbcaneLeaf(cx,cy,rot,sc,green,white,idx){
+  const id='dc'+(_lid++);
+  const dots=[[-5,-10],[4,-14],[-3,-20],[6,-24],[-6,-26],[2,-30],[5,-18],[-4,-16],[3,-8],[-2,-28],[7,-22],[-7,-14]];
+  let sp='';
+  dots.forEach((q,k)=>{ if((k+idx)%3===0) return; const t=(k*7+idx*3)%10; const r=t<6?0.5:t<9?0.8:1.1;
+    sp+=`<circle cx="${q[0]}" cy="${q[1]}" r="${r}" fill="${white}"/>`; });
+  return `<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${sc})">`
+    +`<clipPath id="${id}"><path d="${L.oval}"/></clipPath>`
+    +`<path d="${L.oval}" fill="${green}"/>`
+    +`<path d="M-0.9,-2 Q-0.3,-18 0,-32 Q0.3,-18 0.9,-2 Z" fill="${white}"/>`
+    +`<g clip-path="url(#${id})">${sp}</g>`
+    +`</g>`;
+}
+function dumbcanePlant(p){
+  const green=p.col||'#6aa15a';
+  const white=(p.acc&&/^#[0-9a-fA-F]{6}$/.test(p.acc))?lighten(p.acc,8):'#eef0e2';
+  let stems;
+  if(p.size==='XS') stems=[[60,46,3]];
+  else if(p.size==='S') stems=[[60,38,5]];
+  else if(p.size==='M') stems=[[52,42,5],[70,32,5]];
+  else stems=[[48,34,7],[70,26,7],[60,52,3]];   // two tall (7 leaves) + one short (3)
+  let lines='', leaves='';
+  stems.forEach(st=>{ const [cx,top,k]=st;
+    lines+=`<path d="M${cx},86 L${cx},${top}" stroke="${shade(green,1)}" stroke-width="3" stroke-linecap="round" fill="none"/>`;
+    for(let j=0;j<k;j++){ const sign=j%2?1:-1;
+      const attachY=top + j*((86-top)/(k+0.5));
+      const ang=sign*(15+j*11), sc=0.6+j*0.06;
+      leaves+=dumbcaneLeaf(cx, attachY, ang, sc, shade(green,j%3), white, j);
+    }
+  });
+  return lines+leaves;
 }
 /* ---------- dracaena / dragon tree (cane + spiky tuft, varies by size) ---------- */
 function isDrac(p){ return p.id==='drake' || (p.sp||'').toLowerCase().includes('dracaena'); }
@@ -418,6 +516,9 @@ function creature(p, m){
   let plant='';
   const n = p.size==='L'?5 : p.size==='XS'?3 : p.size==='S'?3 : 4;
   if(isDrac(p)){ plant = dracaenaPlant(p); }
+  else if(isAlocasia(p)){ plant = alocasiaPlant(p); }
+  else if(isFicus(p)){ plant = ficusPlant(p); }
+  else if(isDumbcane(p)){ plant = dumbcanePlant(p); }
   else if(isCaladium(p)){
     const cnt = p.size==='L'?5 : (p.size==='S'||p.size==='XS')?3 : 4;
     const cx=[46,53,60,67,74], ang=[-40,-20,0,20,40], startIdx=Math.floor((5-cnt)/2), baseLeaf=58;
