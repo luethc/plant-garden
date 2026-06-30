@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v8</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v9</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -661,12 +661,13 @@ function applyProfile(p, status){
   document.getElementById('ap_water').value=p.water;
   status.innerHTML=`✨ It's <b>${esc(p.name)}</b> — ${esc(p.sp)}<br><span style="color:var(--muted)">Light: ${esc(p.light)} · ${p.toxic?'⚠ toxic to pets':'pet-safe'} · review below, tweak anything, then add.</span>`;
 }
+function takenNames(){ return [...new Set(SEED.map(p=>p.name).filter(Boolean))].slice(0,80); }
 async function autofillFromName(){
   const status=document.getElementById('ap_status');
   const sp=val('ap_sp');
   if(!sp){ status.textContent='Type what kind of plant it is first, then tap ✨.'; return; }
   status.textContent='✨ filling in the details…';
-  try{ const p=await callIdentify({ species:sp }, status); if(p) applyProfile(p, status); }
+  try{ const p=await callIdentify({ species:sp, taken:takenNames() }, status); if(p) applyProfile(p, status); }
   catch(e){ status.textContent='Something went wrong — enter the details by hand below.'; }
 }
 async function identifyPhoto(inp){
@@ -676,7 +677,7 @@ async function identifyPhoto(inp){
   status.textContent=sp?'📸 looking at your '+esc(sp)+'…':'📸 looking at your plant…';
   try{
     const dataUrl=await downscaleImage(f, 1024, 0.8);
-    const payload={ image:dataUrl }; if(sp) payload.species=sp;
+    const payload={ image:dataUrl, taken:takenNames() }; if(sp) payload.species=sp;
     const p=await callIdentify(payload, status);
     if(p) applyProfile(p, status);
   }catch(e){ status.textContent='Something went wrong — enter the details by hand below.'; }

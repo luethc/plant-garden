@@ -30,6 +30,9 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const image: string = typeof body.image === 'string' ? body.image : '';
     const species: string = typeof body.species === 'string' ? body.species.trim().slice(0, 80) : '';
+    const taken: string[] = Array.isArray(body.taken)
+      ? body.taken.filter((s: unknown) => typeof s === 'string').map((s: string) => s.slice(0, 40)).slice(0, 80)
+      : [];
     const hasImage = image.length > 0;
     if (!hasImage && !species) return json({ error: 'need a photo or a plant name' }, 400);
     if (hasImage && image.length > 1_900_000) return json({ error: 'image too large' }, 413); // ~1.4MB binary
@@ -94,11 +97,12 @@ Deno.serve(async (req) => {
           content: [
             ...(hasImage ? [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } }] : []),
             { type: 'text', text:
-              species && hasImage
+              (species && hasImage
                 ? `The user has told you this plant is a "${species}" — trust that identification, do not second-guess it. Use the photo only to capture its real appearance: actual leaf color, any variegation/accent color, and size. Fill in the cute app profile via the tool, keeping species="${species}". Set is_plant=true.`
               : species
                 ? `Create a cute app profile for a "${species}" houseplant via the tool. Use typical, accurate care values for this species. Keep species="${species}". Set is_plant=true.`
-                : 'Identify this houseplant and fill in a cute app profile via the tool. Choose the closest shape from the allowed list. If you are not confident of the exact cultivar, give the common species or genus name rather than guessing a specific rare variety. If the image is not clearly a houseplant, set is_plant=false.' },
+                : 'Identify this houseplant and fill in a cute app profile via the tool. Choose the closest shape from the allowed list. If you are not confident of the exact cultivar, give the common species or genus name rather than guessing a specific rare variety. If the image is not clearly a houseplant, set is_plant=false.')
+              + ` For cuteName, invent a fresh, original, distinctive name — be playful and surprising. Avoid over-used houseplant clichés (Monty, Monstery, Fernando, Fern, Pearl, Spike, Vera, Ivy, Sunny, Leafy, Planty, Rosie).${taken.length ? ` The user already has plants named: ${taken.join(', ')}. Do NOT reuse any of those — pick something clearly different.` : ''} (variety token: ${crypto.randomUUID().slice(0, 8)})` },
           ],
         }],
       }),
