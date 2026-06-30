@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v9</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v10</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -185,7 +185,7 @@ const BASE = [
   {id:'monty', name:'Monty', sp:'Monstera deliciosa', shape:'monstera', col:'#4f8a44', acc:null, size:'L', rarity:2, light:'Bright indirect', group:'bright', water:7, toxic:true, tip:'The showpiece. Wipe leaves; water when the top 2–3 cm is dry.'},
   {id:'delila', name:'Delila', sp:'Monstera deliciosa', shape:'monstera', col:'#57904c', acc:null, size:'L', rarity:2, light:'Bright indirect', group:'bright', water:8, toxic:true, tip:'Monty’s calmer sibling.'},
   {id:'stella', name:'Stella', sp:'Monstera Thai Constellation', shape:'monstera', col:'#5d9350', acc:'#e6dca0', size:'M', rarity:5, light:'Bright indirect', group:'bright', water:7, toxic:true, tip:'Crown jewel — creamy-yellow starry flecks. A slower grower than the green deliciosa; keep it in bright light (not low) to hold the variegation.'},
-  {id:'albus', name:'Albus', sp:'Monstera albo variegata', shape:'monstera', col:'#5d9350', acc:'#f4f1e6', size:'M', rarity:5, light:'Bright indirect (more light)', group:'bright', water:7, toxic:true, tip:'White half-moon sectors sunburn in direct sun. If she pushes out an all-white leaf, prune back to a node with green so she keeps producing chlorophyll.'},
+  {id:'albus', name:'Albus', sp:'Monstera albo variegata', shape:'monstera', col:'#5d9350', acc:'#f4f1e6', vary:'half', size:'M', rarity:5, light:'Bright indirect (more light)', group:'bright', water:7, toxic:true, tip:'White half-moon sectors sunburn in direct sun. If she pushes out an all-white leaf, prune back to a node with green so she keeps producing chlorophyll.'},
   {id:'mojo', name:'Mojo', sp:'Monstera adansonii (monkey)', shape:'monstera', col:'#4f8444', acc:null, holes:true, size:'M', rarity:2, light:'Bright indirect', group:'bright', water:6, toxic:true, tip:'Holey monkey-mask leaves. Likes a moss pole to climb.'},
   {id:'pip', name:'Pip', sp:'Sarracenia (pitcher plant)', shape:'pitcher', col:'#8fae5f', acc:'#b5564a', size:'S', rarity:3, light:'Full sun', group:'sun', water:2, toxic:false, special:'carnivore', tip:'Carnivorous! ONLY rain/distilled water, sitting in a tray — never tap water, never fertilizer. Needs a cold winter rest.'},
   {id:'effie', name:'Effie', sp:'Dieffenbachia (dumb cane)', shape:'broad', col:'#6aa15a', acc:'#e9e4c6', size:'M', rarity:1, light:'Bright indirect', group:'bright', water:7, toxic:true, tip:'Toxic sap — keep away from mouths and pets.'},
@@ -302,14 +302,72 @@ function face(m){
   return ch+eye(55)+eye(65)+mouth+extra;
 }
 function pot(){ return `<path d="M40,84 C41,96 46,110 48,112 L72,112 C74,110 79,96 80,84 Z" fill="#C8795A"/><path d="M40,84 C41,94 44,106 47,111 L52,112 C48,103 45,93 44,84 Z" fill="#B5664A" opacity=".4"/><ellipse cx="60" cy="84" rx="22" ry="4.5" fill="#D78A68"/><ellipse cx="60" cy="84" rx="17" ry="3" fill="#5A4636"/>`; }
-function leaf(path, cx, rot, scale, fill, accFill, accPath, cy=82){
-  let s=`<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${scale})"><path d="${path}" fill="${fill}"/>`;
+function leaf(path, cx, rot, scale, fill, accFill, accPath, cy=82, midrib){
+  let s=`<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${scale})"><path d="${path}" fill="${fill}" fill-rule="evenodd"/>`;
   if(accFill && accPath) s+=`<path d="${accPath}" fill="${accFill}" opacity=".9"/>`;
+  if(midrib) s+=`<path d="M-1.7,-9 Q-0.6,-29 0,-49 Q0.6,-29 1.7,-9 Z" fill="${midrib}"/>`;
   s+=`</g>`; return s;
+}
+function lighten(hex,amt){ const n=parseInt(hex.slice(1),16);
+  let r=Math.min(255,(n>>16)+amt), g=Math.min(255,((n>>8)&255)+amt), b=Math.min(255,(n&255)+amt);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
+let _lid=0;
+// the fenestration slits on their own, so we can re-outline them on a white sector
+const MONSTERA_SLITS='M5,-16.4 Q14,-17.5 22,-23.5 Q12,-14.5 5,-13.6 Q2.5,-15 5,-16.4 Z M5,-26.9 Q14,-28 21,-34 Q12,-25 5,-24.1 Q2.5,-25.5 5,-26.9 Z M5,-36.9 Q13,-38 18,-44.5 Q11,-34.8 5,-34.1 Q2.5,-35.5 5,-36.9 Z M-5,-16.4 Q-14,-17.5 -22,-23.5 Q-12,-14.5 -5,-13.6 Q-2.5,-15 -5,-16.4 Z M-5,-26.9 Q-14,-28 -21,-34 Q-12,-25 -5,-24.1 Q-2.5,-25.5 -5,-26.9 Z M-5,-36.9 Q-13,-38 -18,-44.5 Q-11,-34.8 -5,-34.1 Q-2.5,-35.5 -5,-36.9 Z';
+// decide a monstera's variegation style: 'half' (albo white sectors), 'speckle' (Thai Constellation), or null
+function monsteraVary(p){
+  if(p.vary) return p.vary;
+  const s=(p.sp||'').toLowerCase();
+  if(s.includes('thai')||s.includes('constellation')) return 'speckle';
+  if(s.includes('albo')||s.includes('albino')||s.includes('variegat')) return 'half';
+  if(p.acc){ const n=parseInt(p.acc.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255;
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    if(mx>225 && (mx-mn)<28) return 'half';    // near-white accent → albo
+    if(mx>200 && b<mx-25) return 'speckle';    // yellowish accent → Thai
+  }
+  return null;
+}
+// Thai Constellation: scattered light-yellow dots (mostly tiny, a few bigger) + occasional streaks, varied per leaf
+function thaiVeg(cx,rot,sc,cy,yellow,idx){
+  const id='thai'+(_lid++);
+  const dots=[[-12,-14],[8,-18],[-6,-24],[14,-28],[-16,-30],[4,-34],[-10,-38],[12,-40],[-2,-44],[7,-48],[-14,-22],[0,-30],[10,-12],[-8,-50],[16,-20],[3,-22],[-4,-16],[11,-34],[-13,-44],[6,-41]];
+  let dotsSvg='';
+  dots.forEach((q,k)=>{ if((k+idx)%4===0) return;                 // drop some each leaf
+    const t=(k*7+idx*3)%10;                                       // size tier
+    const r = t<6?0.55 : t<9?0.95 : 1.6;                          // smallest most frequent
+    dotsSvg+=`<circle cx="${q[0]}" cy="${q[1]}" r="${r}" fill="${yellow}"/>`; });
+  // streaks: thin elongated brush-marks; always at least one, some sit in a base corner
+  const streak=(x,y,ang,len)=>`<ellipse cx="${x}" cy="${y}" rx="1.1" ry="${len}" transform="rotate(${ang} ${x} ${y})" fill="${yellow}" opacity=".9"/>`;
+  const S=[[-16,-10,38,5],[13,-13,-32,5.5],[-6,-30,-18,6],[9,-26,24,5.5],[-12,-40,-30,4.5],[5,-44,20,5]];
+  let streaks=streak(...S[idx%S.length]);                       // always one
+  if(idx%2===1) streaks+=streak(...S[(idx+3)%S.length]);        // some leaves get a second
+  return `<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${sc})">`
+    +`<clipPath id="${id}"><path d="${L.monstera}"/></clipPath>`
+    +`<g clip-path="url(#${id})">${streaks}${dotsSvg}</g>`
+    +`</g>`;
+}
+// half-moon white variegation (albo): white sector inset from the edge so the green outline shows.
+// the divide + which side is white vary per leaf; slits get a thin green outline so they don't vanish.
+function albVeg(cx,rot,sc,cy,white,green,idx){
+  const id='alb'+(_lid++);
+  const V=[
+    'M-42,-64 L0,-64 L0,6 L-42,6 Z',                       // white left, straight down the middle
+    'M-42,-64 L8,-64 L-6,6 L-42,6 Z',                      // white left, diagonal
+    'M42,-64 L0,-64 L0,6 L42,6 Z',                         // white right, straight
+    'M42,-64 L-4,-64 L8,6 L42,6 Z',                        // white right, diagonal
+    'M-42,-64 L4,-64 C-3,-38 6,-18 -3,6 L-42,6 Z',         // white left, wavy
+    'M42,-64 L-2,-64 C6,-36 -5,-16 5,6 L42,6 Z',           // white right, wavy
+  ];
+  const region=V[idx % V.length];
+  return `<g transform="translate(${cx},${cy}) rotate(${rot}) scale(${sc})">`
+    +`<clipPath id="${id}"><path d="${L.monstera}" transform="translate(0,-28) scale(0.9) translate(0,28)"/></clipPath>`
+    +`<path d="${region}" fill="${white}" clip-path="url(#${id})"/>`
+    +`<path d="${MONSTERA_SLITS}" fill="none" stroke="${green}" stroke-width="0.6"/>`
+    +`</g>`;
 }
 // leaf path library (base at 0,0 pointing up)
 const L={
-  monstera:'M0,0 C14,0 26,-4 26,-12 C26,-13 10,-13.5 7,-13.5 C7,-14 7,-14 7,-14.5 C10,-14.5 23,-15 23,-16 C23,-18 22,-25 22,-29 C22,-30 9,-30.5 7,-30.5 C7,-31 7,-31 7,-31.5 C9,-31.5 22,-32 22,-33 C22,-35 20,-42 19,-43 C19,-44 9,-44.5 7,-44.5 C7,-45 7,-45 7,-45.5 C7,-46.5 5,-52 0,-54 C-5,-52 -7,-46.5 -7,-45.5 C-7,-45 -7,-45 -7,-44.5 C-9,-44.5 -19,-44 -19,-43 C-20,-42 -22,-35 -22,-33 C-22,-32 -9,-31.5 -7,-31.5 C-7,-31 -7,-31 -7,-30.5 C-9,-30.5 -22,-30 -22,-29 C-22,-25 -23,-18 -23,-16 C-24,-15 -10,-14.5 -7,-14.5 C-7,-14 -7,-14 -7,-13.5 C-10,-13.5 -26,-13 -26,-12 C-26,-4 -14,0 0,0 Z',
+  monstera:'M0,-5 C6,1 20,3 30,-1 C34,-5 33,-12 30,-16 C28,-30 22,-50 13,-55 C11.5,-55.8 10.5,-55.6 10,-55.8 C8,-56.4 4,-58 0,-60 C-4,-58 -8,-56.4 -10,-55.8 C-10.5,-55.6 -11.5,-55.8 -13,-55 C-22,-50 -28,-30 -30,-16 C-33,-12 -34,-5 -30,-1 C-20,3 -6,1 0,-5 Z M5,-16.4 Q14,-17.5 22,-23.5 Q12,-14.5 5,-13.6 Q2.5,-15 5,-16.4 Z M5,-26.9 Q14,-28 21,-34 Q12,-25 5,-24.1 Q2.5,-25.5 5,-26.9 Z M5,-36.9 Q13,-38 18,-44.5 Q11,-34.8 5,-34.1 Q2.5,-35.5 5,-36.9 Z M-5,-16.4 Q-14,-17.5 -22,-23.5 Q-12,-14.5 -5,-13.6 Q-2.5,-15 -5,-16.4 Z M-5,-26.9 Q-14,-28 -21,-34 Q-12,-25 -5,-24.1 Q-2.5,-25.5 -5,-26.9 Z M-5,-36.9 Q-13,-38 -18,-44.5 Q-11,-34.8 -5,-34.1 Q-2.5,-35.5 -5,-36.9 Z',
   heart:'M0,-2 C 9,-6 14,-16 9,-24 C 5,-28 1,-26 0,-23 C -1,-26 -5,-28 -9,-24 C -14,-16 -9,-6 0,-2 Z',
   oval:'M0,0 C -10,-6 -11,-26 0,-34 C 11,-26 10,-6 0,0 Z',
   blade:'M-3,0 C -4,-16 -2,-34 0,-42 C 2,-34 4,-16 3,0 Z',
@@ -327,10 +385,13 @@ function creature(p, m){
     }
     for(let i=0;i<n;i++){const idx=Math.floor((5-n)/2)+i;
       let acc=null, accP=null;
-      if(p.acc){ acc=p.acc; accP='M-4,-20 a3,7 0 1,0 7,0 a3,7 0 1,0 -7,0 Z'; }
       let extra='';
-      if(p.holes){ extra=`<g transform="translate(${cx[idx]},${leafY}) rotate(${ang[idx]}) scale(${sc[idx]})"><ellipse cx="7" cy="-20" rx="2" ry="3.8" fill="var(--cream)"/><ellipse cx="-7" cy="-30" rx="2" ry="3.8" fill="var(--cream)"/></g>`; }
-      plant += leaf(L.monstera, cx[idx], ang[idx], sc[idx], shade(p.col,i), acc, accP, leafY) + extra;
+      const vary=monsteraVary(p);
+      if(vary==='half'){ extra += albVeg(cx[idx],ang[idx],sc[idx],leafY, p.acc||'#f4f1e6', shade(p.col,i), idx); }
+      else if(vary==='speckle'){ extra += thaiVeg(cx[idx],ang[idx],sc[idx],leafY, p.acc||'#e6dca0', idx); }
+      else if(p.acc){ acc=p.acc; accP='M-4,-20 a3,7 0 1,0 7,0 a3,7 0 1,0 -7,0 Z'; }
+      if(p.holes){ extra+=`<g transform="translate(${cx[idx]},${leafY}) rotate(${ang[idx]}) scale(${sc[idx]})"><ellipse cx="7" cy="-20" rx="2" ry="3.8" fill="var(--cream)"/><ellipse cx="-7" cy="-30" rx="2" ry="3.8" fill="var(--cream)"/></g>`; }
+      plant += leaf(L.monstera, cx[idx], ang[idx], sc[idx], shade(p.col,i), acc, accP, leafY, lighten(shade(p.col,i),55)) + extra;
     }
   } else if(p.shape==='heart'){
     const ang=[-46,-22,0,22,46];
