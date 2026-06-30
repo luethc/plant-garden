@@ -159,6 +159,26 @@
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
+<!-- Login screen: covers everything until a session exists -->
+<div id="authscreen" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:200;overflow-y:auto;padding:env(safe-area-inset-top) 0 0">
+  <div style="max-width:380px;margin:0 auto;padding:48px 22px;text-align:center">
+    <div style="font-size:46px;line-height:1">🌿</div>
+    <h1 style="font-family:var(--serif);color:var(--ink);font-size:28px;margin:10px 0 2px">my garden</h1>
+    <p id="auth_sub" style="color:var(--muted);font-size:14px;margin:0 0 22px">Sign in to sync your plants everywhere.</p>
+    <input id="auth_email" type="email" autocomplete="email" placeholder="email" style="width:100%;border:1px solid var(--line);border-radius:12px;padding:13px;font-family:var(--sans);font-size:16px;background:var(--card);color:var(--ink2);margin-bottom:10px;box-sizing:border-box">
+    <input id="auth_pw" type="password" autocomplete="current-password" placeholder="password" style="width:100%;border:1px solid var(--line);border-radius:12px;padding:13px;font-family:var(--sans);font-size:16px;background:var(--card);color:var(--ink2);box-sizing:border-box">
+    <div id="auth_err" style="color:var(--bad);font-size:13px;min-height:18px;margin:8px 0 0;text-align:left"></div>
+    <button id="auth_go" class="btn water full" style="margin-top:6px" onclick="authSubmit()">sign in</button>
+    <div style="margin-top:16px;font-size:13px;color:var(--muted)">
+      <span id="auth_toggle" onclick="authToggleMode()" style="cursor:pointer;text-decoration:underline">new here? create an account</span>
+    </div>
+    <div style="margin-top:10px;font-size:13px">
+      <span id="auth_reset" onclick="authReset()" style="cursor:pointer;color:var(--hint);text-decoration:underline">forgot password?</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ---------- plant data (the cast of 25) ---------- */
 const BASE = [
@@ -636,28 +656,18 @@ function openTools(){
       <button class="opt" onclick="startCheckin()">🔍 Monthly check-in<br><span style="color:var(--muted);font-size:12px">Quick tap-through to catch soggy / light / pests</span></button>
       <button class="opt" onclick="exportData()">💾 Back up my garden<br><span style="color:var(--muted);font-size:12px">Save your plants, dates, notes &amp; photos to a file</span></button>
       <label class="opt" style="display:block;cursor:pointer">📂 Restore from a backup<br><span style="color:var(--muted);font-size:12px">Load a backup file (e.g. on a new phone)</span><input type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"></label>
-      <button class="opt" onclick="openSyncSetup()">🔗 Connect another device<br><span style="color:var(--muted);font-size:12px">Sync your garden to a new phone or tablet</span></button>
+      <button class="opt" onclick="openAccount()">👤 Account<br><span style="color:var(--muted);font-size:12px">${currentUser?esc(currentUser.email):'Signed in'} · synced to all your devices</span></button>
       <button class="opt" onclick="closeModal()">close</button>
     </div>`;
   document.getElementById('modal').classList.add('show');
 }
-function openSyncSetup(){
-  const id=getSyncId();
+function openAccount(){
   const s=document.getElementById('sheet');
-  s.innerHTML=`<h3>connect another device</h3>
-    <p class="s">On your other device, open the app → garden tools → Connect another device → paste this code.</p>
-    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;font-family:monospace;font-size:13px;word-break:break-all;color:var(--ink);margin-bottom:12px">${id}</div>
-    <button class="btn water full" onclick="navigator.clipboard.writeText('${id}').then(()=>toast('copied!'))">copy code</button>
-    <p class="s" style="margin-top:16px">Or paste a code from another device to connect this one:</p>
-    <div class="field"><input id="sync_in" placeholder="paste sync code here" style="font-size:14px"></div>
-    <button class="btn full" style="background:var(--sage);color:#fff" onclick="linkSyncId()">link this device</button>
-    <button class="btn ghost full" style="margin-top:8px" onclick="openTools()">back</button>`;
-}
-function linkSyncId(){
-  const val=document.getElementById('sync_in').value.trim();
-  if(!val||val.length<10){ toast('paste a valid code'); return; }
-  localStorage.setItem(SYNC_ID_KEY,val);
-  syncPull().then(()=>{ closeModal(); toast('✅ linked — garden synced'); });
+  s.innerHTML=`<h3>account</h3>
+    <p class="s">Signed in as <strong>${currentUser?esc(currentUser.email):'—'}</strong>.</p>
+    <p class="s">Your garden syncs automatically to every device you sign in on — just log in with this email and password.</p>
+    <button class="btn ghost full" style="margin-top:8px;color:var(--bad);border-color:#e6c3b8" onclick="logOut()">log out on this device</button>
+    <button class="btn ghost full" style="margin-top:8px;border:none" onclick="openTools()">back</button>`;
 }
 function openExportPicker(){
   const s=document.getElementById('sheet');
@@ -804,62 +814,179 @@ document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id===
 
 if(!meta.firstUse){ meta.firstUse=Date.now(); saveMeta(); }
 
-/* ── Supabase sync ── */
+/* ── Supabase auth + per-user sync ── */
 const SUPA_URL='https://rpetpvpgowvkbwcoivle.supabase.co';
 const SUPA_KEY='sb_publishable_Vgf_sYS4mHlgIOxo-TogcQ_xKIzLe_X';
-const SYNC_ID_KEY='garden_sync_id';
-function getSyncId(){
-  let id=localStorage.getItem(SYNC_ID_KEY);
-  if(!id){ id=crypto.randomUUID(); localStorage.setItem(SYNC_ID_KEY,id); }
-  return id;
-}
-async function supaReq(method,path,body){
-  const h={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'};
-  if(method==='POST') h['Prefer']='resolution=merge-duplicates,return=minimal';
-  const r=await fetch(SUPA_URL+'/rest/v1'+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
-  if(!r.ok) throw new Error(await r.text());
-  return r.status===204?null:r.json().catch(()=>null);
-}
-async function syncPush(){
-  try{
-    await supaReq('POST','/garden_sync',{garden_id:getSyncId(),custom,store,updated_at:new Date().toISOString()});
-    setSyncDot('ok');
-  }catch(e){ setSyncDot('err'); }
-}
-async function syncPull(){
-  try{
-    const rows=await supaReq('GET','/garden_sync?garden_id=eq.'+getSyncId()+'&limit=1');
-    if(!rows||!rows.length) return;
-    const remote=rows[0];
-    const remoteTs=new Date(remote.updated_at).getTime();
-    const localTs=meta.lastSync||0;
-    if(remoteTs>localTs){
-      if(remote.custom){ custom=remote.custom; localStorage.setItem(CKEY,JSON.stringify(custom)); buildSeed(); }
-      if(remote.store){ store=Object.assign({},remote.store); save(); }
-      meta.lastSync=remoteTs; saveMeta(); render();
-    }
-    setSyncDot('ok');
-  }catch(e){ setSyncDot('err'); }
-}
-let _syncTimer=null;
-function schedulePush(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncPush,2500); }
+const SYNC_ID_KEY='garden_sync_id';            // legacy anonymous id, used once for migration
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
+let currentUser = null;
+
 function setSyncDot(state){
   const el=document.getElementById('sync-dot');
   if(!el) return;
-  el.title=state==='ok'?'synced':'sync error';
-  el.style.background=state==='ok'?'#6aaa6a':'#e07050';
+  el.title = state==='ok'?'synced':(state==='off'?'offline — saved on this device':'sync error');
+  el.style.background = state==='ok'?'#6aaa6a':(state==='off'?'#c9b87a':'#e07050');
 }
-/* patch save/saveCustom to also push */
-const _origSave=save, _origSaveCustom=saveCustom;
-// redefine after both are declared
-(function(){
-  const _s=save, _sc=saveCustom;
-  window.save=function(){ _s(); schedulePush(); };
-  window.saveCustom=function(){ _sc(); schedulePush(); };
-})();
 
-syncPull();
-greet(); render();
+// does a garden actually contain anything? guards against empty data clobbering real data.
+function hasContent(c, s){
+  const added   = c && c.added && c.added.length;
+  const edits   = c && c.edits && Object.keys(c.edits).length;
+  const deleted = c && c.deleted && c.deleted.length;
+  const state   = s && Object.values(s).some(v=>v && (v.last || v.notes || (v.journal&&v.journal.length) || (v.history&&v.history.length)));
+  return !!(added || edits || deleted || state);
+}
+
+// one-time read of the legacy anon table (only for migrating existing data)
+async function legacyRead(syncId){
+  try{
+    const r = await fetch(SUPA_URL+'/rest/v1/garden_sync?garden_id=eq.'+encodeURIComponent(syncId)+'&select=custom,store&limit=1',
+      { headers:{ apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY } });
+    if(!r.ok) return null;
+    const rows = await r.json();
+    return rows && rows.length ? rows[0] : null;
+  }catch(e){ return null; }
+}
+
+async function gardenPush(){
+  if(!currentUser) return;
+  try{
+    const { error } = await sb.from('gardens').upsert({
+      user_id: currentUser.id, custom, store, updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    meta.lastSync = Date.now(); saveMeta();
+    setSyncDot('ok');
+  }catch(e){ setSyncDot(navigator.onLine?'err':'off'); }
+}
+
+async function gardenPull(){
+  if(!currentUser) return;
+  try{
+    const { data, error } = await sb.from('gardens')
+      .select('custom,store,updated_at').eq('user_id', currentUser.id).maybeSingle();
+    if(error) throw error;
+    if(!data){ setSyncDot('ok'); return; }
+    const remoteTs = new Date(data.updated_at).getTime();
+    const localTs  = meta.lastSync || 0;
+    // only adopt remote if it's newer AND has real content (never overwrite local data with empty)
+    if(remoteTs > localTs && hasContent(data.custom, data.store)){
+      if(data.custom){ custom = data.custom; localStorage.setItem(CKEY, JSON.stringify(custom)); buildSeed(); }
+      store = data.store || {}; save();
+      meta.lastSync = remoteTs; saveMeta(); render();
+    }
+    setSyncDot('ok');
+  }catch(e){ setSyncDot(navigator.onLine?'err':'off'); }
+}
+
+// idempotent, one-time: bring existing data into this user's account exactly once
+async function migrateIfNeeded(){
+  const { data, error } = await sb.from('gardens')
+    .select('migrated_legacy,custom,store').eq('user_id', currentUser.id).maybeSingle();
+  if(error) throw error;
+  if(data && data.migrated_legacy) return;          // already migrated on some device → skip
+
+  // pick the fullest source: legacy cloud (by stored sync id) > this device's local > any pre-existing row
+  let src = null;
+  const legacyId = localStorage.getItem(SYNC_ID_KEY);
+  if(legacyId){
+    const legacy = await legacyRead(legacyId);
+    if(legacy && hasContent(legacy.custom, legacy.store)) src = { custom: legacy.custom, store: legacy.store };
+  }
+  if(!src && hasContent(custom, store)) src = { custom, store };
+  if(!src && data && hasContent(data.custom, data.store)) src = { custom: data.custom, store: data.store };
+
+  const finalCustom = (src && src.custom) || { added:[], edits:{}, deleted:[] };
+  const finalStore  = (src && src.store)  || {};
+
+  const up = await sb.from('gardens').upsert({
+    user_id: currentUser.id, custom: finalCustom, store: finalStore,
+    migrated_legacy: new Date().toISOString(), updated_at: new Date().toISOString()
+  });
+  if(up.error) throw up.error;
+
+  custom = finalCustom; localStorage.setItem(CKEY, JSON.stringify(custom)); buildSeed();
+  store = finalStore; save();
+  meta.lastSync = Date.now(); saveMeta();
+}
+
+let _syncTimer=null;
+function schedulePush(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(gardenPush, 2500); }
+// clean persist hooks (push to cloud after every local save) — replaces the old global monkeypatch
+save = (function(orig){ return function(){ orig(); schedulePush(); }; })(save);
+saveCustom = (function(orig){ return function(){ orig(); schedulePush(); }; })(saveCustom);
+
+/* ---------- login screen ---------- */
+let _authMode='signin';
+function authToggleMode(){
+  _authMode = _authMode==='signin' ? 'signup' : 'signin';
+  document.getElementById('auth_go').textContent = _authMode==='signin' ? 'sign in' : 'create account';
+  document.getElementById('auth_sub').textContent = _authMode==='signin'
+    ? 'Sign in to sync your plants everywhere.' : 'Create an account to sync your plants everywhere.';
+  document.getElementById('auth_toggle').textContent = _authMode==='signin'
+    ? 'new here? create an account' : 'already have an account? sign in';
+  document.getElementById('auth_pw').setAttribute('autocomplete', _authMode==='signin'?'current-password':'new-password');
+  document.getElementById('auth_err').textContent='';
+}
+function authErr(m){ document.getElementById('auth_err').textContent = m||''; }
+async function authSubmit(){
+  const email=document.getElementById('auth_email').value.trim();
+  const pw=document.getElementById('auth_pw').value;
+  if(!email || !pw){ authErr('Enter your email and password.'); return; }
+  if(_authMode==='signup' && pw.length<8){ authErr('Password must be at least 8 characters.'); return; }
+  const btn=document.getElementById('auth_go'); btn.disabled=true; authErr('');
+  try{
+    if(_authMode==='signin'){
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if(error) throw error;
+      await onAuthed(data.user);
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password: pw });
+      if(error) throw error;
+      if(data.session){ await onAuthed(data.user); }
+      else { authErr('Check your email to confirm your account, then sign in.'); _authMode='signin'; }
+    }
+  }catch(e){ authErr(e.message||'Something went wrong.'); }
+  finally{ btn.disabled=false; }
+}
+async function authReset(){
+  const email=document.getElementById('auth_email').value.trim();
+  if(!email){ authErr('Enter your email first, then tap reset.'); return; }
+  try{ await sb.auth.resetPasswordForEmail(email); authErr(''); toast('📧 password reset email sent'); }
+  catch(e){ authErr(e.message||'Could not send reset email.'); }
+}
+async function logOut(){
+  await sb.auth.signOut();
+  [CKEY, KEY, MKEY, SYNC_ID_KEY].forEach(k=>localStorage.removeItem(k));
+  location.reload();
+}
+
+/* ---------- boot / auth gate ---------- */
+let _booting=false;
+async function onAuthed(user){
+  if(currentUser) return;                     // guard against double-fire
+  currentUser = user;
+  document.getElementById('authscreen').style.display='none';
+  try{ await migrateIfNeeded(); }catch(e){ setSyncDot('err'); }
+  await gardenPull();
+  // safety: if this device holds data, make sure the cloud has it (covers any sign-up order)
+  if(hasContent(custom, store)) schedulePush();
+  greet(); render();
+}
+async function boot(){
+  if(_booting) return; _booting=true;
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session && session.user){ await onAuthed(session.user); }
+    else { document.getElementById('authscreen').style.display='block'; }
+  }catch(e){
+    document.getElementById('authscreen').style.display='block';
+  }
+}
+sb.auth.onAuthStateChange((event, session)=>{
+  if(event==='SIGNED_OUT'){ currentUser=null; }
+});
+boot();
 /* auto-update: pull the newest version whenever a fresh one is published */
 if('serviceWorker' in navigator){
   const hadController = !!navigator.serviceWorker.controller;

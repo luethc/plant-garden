@@ -1,4 +1,4 @@
-const CACHE = 'my-garden-v3';
+const CACHE = 'my-garden-v4';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -14,6 +14,8 @@ self.addEventListener('activate', (e) => {
 // Network-first for the page/HTML (so updates appear when online), cache-first for static assets.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // Never cache Supabase auth/data API — always hit the network (no stale or cross-account data).
+  if (e.request.url.includes('.supabase.co/')) return;
   const isPage = e.request.mode === 'navigate' || e.request.destination === 'document';
   if (isPage) {
     e.respondWith(
