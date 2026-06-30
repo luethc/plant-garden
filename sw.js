@@ -1,4 +1,4 @@
-const CACHE = 'my-garden-v7';
+const CACHE = 'my-garden-v8';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {

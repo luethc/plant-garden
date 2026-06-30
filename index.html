@@ -131,7 +131,7 @@
 
 <header class="top" style="display:flex;align-items:flex-start;justify-content:space-between">
   <div>
-    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v7</span></h1>
+    <h1>my garden <span style="font-size:11px;font-family:var(--sans);font-weight:400;color:var(--hint);vertical-align:middle">v8</span></h1>
     <div class="sub" id="greeting"></div>
   </div>
   <div title="synced" id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#ccc;margin-top:10px;flex-shrink:0"></div>
@@ -646,7 +646,11 @@ async function callIdentify(payload, status){
   const j=await r.json().catch(()=>({error:'bad response'}));
   if(r.status===429){ status.textContent='🌙 '+(j.message||'Daily limit reached.'); return null; }
   if(j && j.plant===false){ status.textContent=j.message||'No plant found in that photo.'; return null; }
-  if(!r.ok || !j || j.error || !j.profile){ status.textContent='Sorry, that didn’t work — try again, or enter the details by hand below.'; return null; }
+  if(!r.ok || !j || j.error || !j.profile){
+    const detail=(j&&(j.error||j.detail))?` (${j.error||''}${j.detail?': '+j.detail:''})`:'';
+    status.textContent='Sorry, that didn’t work — try again, or enter the details by hand below.'+detail;
+    return null;
+  }
   return j.profile;
 }
 function applyProfile(p, status){
