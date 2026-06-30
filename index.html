@@ -209,8 +209,10 @@ const CKEY='garden_custom_v1';
 let custom = JSON.parse(localStorage.getItem(CKEY) || '{"added":[],"edits":{},"deleted":[]}');
 let SEED = [];
 function buildSeed(){
-  SEED = BASE.filter(p=>!custom.deleted.includes(p.id)).map(p=>Object.assign({}, p, custom.edits[p.id]||{}));
-  custom.added.forEach(p=>SEED.push(p));
+  // base plants: catalog template + your instance overlay (edits NEVER mutate BASE — they live in custom.edits)
+  SEED = BASE.filter(p=>!custom.deleted.includes(p.id)).map(p=>{ const m=Object.assign({}, p, custom.edits[p.id]||{}); m.source='base'; return m; });
+  // user-added plants are their own instances
+  custom.added.forEach(p=>{ const m=Object.assign({}, p); m.source='user'; SEED.push(m); });
 }
 function saveCustom(){ localStorage.setItem(CKEY, JSON.stringify(custom)); buildSeed(); }
 buildSeed();
@@ -231,7 +233,7 @@ function checkinDue(){ return !meta.lastCheckin || (Date.now()-meta.lastCheckin)
 function hasData(){ return custom.added.length>0 || Object.values(store).some(s=>s && (s.last || (s.journal&&s.journal.length) || s.notes)); }
 function backupDue(){ if(!hasData()) return false; if(meta.lastBackup) return (Date.now()-meta.lastBackup) > 30*DAY; return (Date.now()-(meta.firstUse||Date.now())) > 14*DAY; }
 function byId(id){ return SEED.find(p=>p.id===id); }
-function isCustom(id){ return String(id).startsWith('u'); }
+function isCustom(id){ const p=byId(id); if(p&&p.source) return p.source==='user'; return String(id).startsWith('u'); }
 function patchPlant(id, fields){
   if(isCustom(id)){ const p=custom.added.find(x=>x.id===id); if(p) Object.assign(p, fields); }
   else { custom.edits[id]=Object.assign(custom.edits[id]||{}, fields); }
@@ -243,7 +245,8 @@ function deletePlant(id){
   delete store[id]; save(); saveCustom();
   closeModal(); closeDetail(); go('garden'); toast('plant removed');
 }
-function esc(s){ return (s||'').replace(/"/g,'&quot;'); }
+// Full HTML escaping — safe for both attribute and text contexts. Critical once names/species can come from an AI or another user.
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 /* ---------- watering / mood logic ---------- */
 function dueInfo(p){
@@ -417,7 +420,7 @@ function cardRow(p, showWater){
   return `<div class="card" onclick="openDetail('${p.id}')">
     <div class="creature">${creature(p,m)}</div>
     <div class="meta">
-      <div class="nm">${p.name}</div><div class="sp">${p.sp}</div>
+      <div class="nm">${esc(p.name)}</div><div class="sp">${esc(p.sp)}</div>
       <div class="st s-${m}">${statusDot(m)}${label}</div>
     </div>
     ${showWater?`<button class="btn water" onclick="event.stopPropagation();waterNow('${p.id}')">water ✓</button>`:`<button class="btn ghost" onclick="event.stopPropagation();openDetail('${p.id}')">open</button>`}
@@ -427,7 +430,7 @@ function cardRow(p, showWater){
 function miniTile(p){ const m=plantState(p.id).mood||dueInfo(p).status;
   return `<div class="tile" onclick="openDetail('${p.id}')">
       <div class="creature">${creature(p,m)}</div>
-      <div class="nm">${p.name}</div>
+      <div class="nm">${esc(p.name)}</div>
       <div class="st s-${m}">${statusDot(m)}${MOODWORD[m]||'happy'}</div>
       ${rarity(p.rarity)}
     </div>`;
@@ -498,12 +501,12 @@ function openDetail(id){
   const el=document.getElementById('detail');
   el.innerHTML=`
    <div class="obar"><button class="x" onclick="closeDetail()">‹</button>
-     <strong style="font-family:var(--serif);color:var(--ink);font-size:18px;flex:1">${p.name}</strong>
+     <strong style="font-family:var(--serif);color:var(--ink);font-size:18px;flex:1">${esc(p.name)}</strong>
      <button class="x" style="font-size:14px;font-family:var(--sans);color:var(--muted)" onclick="openEdit('${p.id}')">edit</button></div>
    <div class="wrap">
     <div class="hero">
       <div class="creature">${creature(p,m)}</div>
-      <h2>${p.name}</h2><div class="sp">${p.sp}</div>
+      <h2>${esc(p.name)}</h2><div class="sp">${esc(p.sp)}</div>
       <div class="st s-${m}" style="justify-content:center;display:flex;gap:5px;margin-top:6px">${statusDot(m)}${st.mood?MOODWORD[m]:d.label}</div>
     </div>
     <div class="pills">
@@ -512,15 +515,15 @@ function openDetail(id){
       ${p.special==='carnivore'?`<span class="pill tox">carnivorous</span>`:''}
       ${p.special==='pups'?`<span class="pill">watch for pups</span>`:''}
     </div>
-    <button class="btn water full" onclick="waterNow('${p.id}')">💧 I watered ${p.name} today</button>
+    <button class="btn water full" onclick="waterNow('${p.id}')">💧 I watered ${esc(p.name)} today</button>
     <div class="facts" style="margin-top:10px">
       <div class="row"><span class="k">Rarity</span><span class="v">${rarity(p.rarity)}</span></div>
-      <div class="row"><span class="k">Light</span><span class="v">${p.light}</span></div>
+      <div class="row"><span class="k">Light</span><span class="v">${esc(p.light)}</span></div>
       <div class="row"><span class="k">Water every</span><span class="v">~${p.water} days</span></div>
       <div class="row"><span class="k">Last watered</span><span class="v"><input type="date" value="${dateVal}" onclick="try{this.showPicker()}catch(e){}" onchange="setLast('${p.id}',this.value)"> </span></div>
       <div class="row"><span class="k">Next due</span><span class="v">${st.last?dueWord(d):'—'}</span></div>
     </div>
-    <div style="font-size:13px;color:var(--ink2);line-height:1.6;background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:12px">💡 ${p.tip}</div>
+    <div style="font-size:13px;color:var(--ink2);line-height:1.6;background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:12px">💡 ${esc(p.tip)}</div>
 
     <span class="lbl">Location</span>
     <div class="loc" style="display:flex;gap:8px">
@@ -530,7 +533,7 @@ function openDetail(id){
     <datalist id="roomlist">${roomOpts()}</datalist>
     <datalist id="boxlist">${boxOpts()}</datalist>
 
-    <span class="lbl">How is ${p.name} doing?</span>
+    <span class="lbl">How is ${esc(p.name)} doing?</span>
     <div class="pills">
       <button class="pill" onclick="setMood('${p.id}',null)" ${!st.mood?'style="background:#e8efe2;border-color:#cdd8c0"':''}>👍 fine</button>
       <button class="pill" onclick="setMood('${p.id}','soggy')" ${st.mood==='soggy'?'style="background:#e3eaf2;border-color:#c3d2e6"':''}>💧 soggy</button>
@@ -542,7 +545,7 @@ function openDetail(id){
     <div class="hist">${hist||'<span style="color:var(--hint);font-size:12px">no waterings logged yet</span>'}</div>
 
     <span class="lbl">Notes</span>
-    <textarea placeholder="anything you want to remember about ${p.name}…" onchange="setNotes('${p.id}',this.value)">${st.notes||''}</textarea>
+    <textarea placeholder="anything you want to remember about ${esc(p.name)}…" onchange="setNotes('${p.id}',this.value)">${esc(st.notes||'')}</textarea>
 
     <span class="lbl">Photo journal</span>
     <div class="journal">
@@ -666,7 +669,7 @@ function openExportPicker(){
     <div style="max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)">
       ${SEED.map(p=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:14px;border-bottom:1px solid var(--line2)">
         <input type="checkbox" class="exp" value="${p.id}" checked style="width:18px;height:18px">
-        <span style="flex:1">${p.name} <span style="color:var(--muted);font-size:12px">· every ${p.water}d</span></span></label>`).join('')}
+        <span style="flex:1">${esc(p.name)} <span style="color:var(--muted);font-size:12px">· every ${p.water}d</span></span></label>`).join('')}
     </div>
     <label style="display:flex;align-items:center;gap:10px;padding:14px 4px;font-size:14px">
       <input type="checkbox" id="exp_checkin" checked style="width:18px;height:18px"> also add a monthly check-in reminder</label>
@@ -735,9 +738,9 @@ function startCheckin(){ ciQueue=SEED.slice(); ciIdx=0; nextCheckin(); }
 function nextCheckin(){
   if(ciIdx>=ciQueue.length){ meta.lastCheckin=Date.now(); saveMeta(); closeModal(); render(); toast('✅ check-in done'); return; }
   const p=ciQueue[ciIdx]; const s=document.getElementById('sheet');
-  s.innerHTML=`<h3>${p.name}</h3><p class="s">${p.sp} &nbsp;·&nbsp; ${ciIdx+1}/${ciQueue.length}</p>
+  s.innerHTML=`<h3>${esc(p.name)}</h3><p class="s">${esc(p.sp)} &nbsp;·&nbsp; ${ciIdx+1}/${ciQueue.length}</p>
     <div style="text-align:center"><div class="creature" style="width:110px;height:110px;margin:0 auto 8px">${creature(p,plantState(p.id).mood||dueInfo(p).status)}</div></div>
-    <p class="s">How does ${p.name} look?</p>
+    <p class="s">How does ${esc(p.name)} look?</p>
     <div class="opts">
       <button class="opt" onclick="ciSet(null)">👍 Healthy & happy</button>
       <button class="opt" onclick="ciSet('soggy')">💧 Soil soggy / leaves yellowing</button>
